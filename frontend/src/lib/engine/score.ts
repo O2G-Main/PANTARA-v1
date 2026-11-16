@@ -54,7 +54,8 @@ export interface Candidate {
   cautions: string[];
 }
 
-interface Filtered { member: Member; failures: string[] }
+export interface FilteredOut { member: Member; failures: string[] }
+type Filtered = FilteredOut;
 
 /** Jam teralokasi karyawan di periode aktif (tugas yang sudah ditugaskan). */
 export function allocatedHours(memberId: string, tasks: Task[]): number {

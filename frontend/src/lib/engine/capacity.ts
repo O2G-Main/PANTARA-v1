@@ -97,8 +97,10 @@ function weekStart(date: string): Date {
   return d;
 }
 
+export interface WeekBucket { start: string; hours: number; capacity: number }
+
 /** Proyeksi beban karyawan per minggu: sisa jam tugas aktif disebar rata ke hari kerja sampai tenggat. */
-export function weeklyLoad(member: Member, tasks: Task[], today: string, weeks = 4): { start: string; hours: number; capacity: number }[] {
+export function weeklyLoad(member: Member, tasks: Task[], today: string, weeks = 4): WeekBucket[] {
   const first = weekStart(today);
   const out = Array.from({ length: weeks }, (_, i) => {
     const s = new Date(first);

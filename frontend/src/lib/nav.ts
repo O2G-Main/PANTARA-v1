@@ -71,7 +71,7 @@ const PAGE_MAP = {
   "/pengaturan": { id: "P28", label: "Pengaturan", group: "Sistem", icon: Settings, description: "Mengatur periode default, jam kerja, dan hari libur ruang kerja." },
   "/pengaturan/rekomendasi": { id: "P29", label: "Aturan rekomendasi", group: "Sistem", icon: SlidersHorizontal, description: "Memilih preset bobot dan syarat wajib kandidat." },
   "/pengaturan/tagihan": { id: "P32", label: "Tagihan", group: "Sistem", icon: ReceiptText, description: "Paket, jumlah kursi, dan riwayat invoice ruang kerja." },
-  "/pengaturan/karyawan": { id: "P31", label: "Karyawan & peran", group: "Sistem", icon: UserCog, description: "Mengundang karyawan, mengubah peran, dan menonaktifkan akun." },
+  "/pengaturan/anggota": { id: "P31", label: "Karyawan & peran", group: "Sistem", icon: UserCog, description: "Mengundang karyawan, mengubah peran, dan menonaktifkan akun." },
   "/akun": { id: "P33", label: "Akun saya", group: "Akun", icon: CircleUser, description: "Mengubah profil, sandi, dan preferensi notifikasi." },
   "/notifikasi": { id: "P34", label: "Notifikasi", group: "Akun", icon: Bell, description: "Melihat penugasan baru, penolakan, dan pengingat." },
   "/bantuan": { id: "P35", label: "Bantuan", group: "Akun", icon: LifeBuoy, description: "Panduan singkat alur penugasan dan cara skor kandidat dihitung." },
@@ -81,12 +81,19 @@ const PAGE_MAP = {
 export type PageRoute = keyof typeof PAGE_MAP;
 export const PAGES: Record<PageRoute, PageInfo> = PAGE_MAP;
 
-/** Menu sidebar manajer (01-PRD §5b). */
-export const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
+/** Menu sidebar admin (01-PRD §5b). */
+const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
   { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
   { group: "Analisis", routes: ["/keputusan", "/laporan"] },
   { group: "Sistem", routes: ["/pengaturan"] },
+];
+
+/** Menu sidebar manajer operasional (tanpa pengaturan ruang kerja admin). */
+const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
+  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
+  { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
+  { group: "Analisis", routes: ["/keputusan", "/laporan"] },
 ];
 
 /** Menu sidebar karyawan: hanya halaman miliknya sendiri. */
@@ -94,12 +101,24 @@ export const EMPLOYEE_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
   { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil"] },
 ];
 
-const SHARED_ROUTES = ["/akun", "/notifikasi", "/bantuan", "/403"];
+export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan";
 
-/** Hak akses per peran: karyawan hanya area /saya + halaman akun; manajer semua kecuali /saya. */
-export function canAccess(role: "manajer" | "karyawan", pathname: string): boolean {
+export function navigationForRole(role: AccessRole) {
+  if (role === "anggota" || role === "karyawan") return EMPLOYEE_NAVIGATION;
+  if (role === "admin") return ADMIN_NAVIGATION;
+  return NAVIGATION;
+}
+
+const SHARED_ROUTES = ["/akun", "/notifikasi", "/bantuan", "/403"];
+const ADMIN_ONLY_ROUTES = ["/pengaturan", "/mulai"];
+
+/** Hak akses per peran: anggota hanya /saya; manajer operasi; admin penuh kecuali /saya. */
+export function canAccess(role: AccessRole, pathname: string): boolean {
   if (SHARED_ROUTES.some(href => isActive(pathname, href))) return true;
-  return role === "karyawan" ? isActive(pathname, "/saya") : !isActive(pathname, "/saya");
+  if (role === "karyawan" || role === "anggota") return isActive(pathname, "/saya");
+  if (isActive(pathname, "/saya")) return false;
+  if (ADMIN_ONLY_ROUTES.some(href => isActive(pathname, href))) return role === "admin";
+  return true;
 }
 
 /** Link menu aktif untuk halaman itu sendiri dan semua sub-halamannya. */
@@ -118,7 +137,7 @@ export const SUBNAV: Partial<Record<PageRoute, { href: PageRoute; label: string;
   "/pengaturan": [
     { href: "/pengaturan", label: "Umum", icon: Building2 },
     { href: "/pengaturan/rekomendasi", label: "Aturan rekomendasi", icon: SlidersHorizontal },
-    { href: "/pengaturan/karyawan", label: "Karyawan & peran", icon: UserCog },
+    { href: "/pengaturan/anggota", label: "Karyawan & peran", icon: UserCog },
     { href: "/pengaturan/tagihan", label: "Tagihan", icon: ReceiptText },
   ],
 };
