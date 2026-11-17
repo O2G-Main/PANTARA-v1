@@ -29,6 +29,9 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       headers.set(key, value);
     }
   });
+  if (!headers.has("x-forwarded-proto") && request.nextUrl.protocol === "https:") {
+    headers.set("x-forwarded-proto", "https");
+  }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   const body = hasBody ? await request.arrayBuffer() : undefined;
@@ -55,6 +58,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       resHeaders.append(key, value);
     }
   });
+  if (upstream.headers.get("content-type")?.includes("text/event-stream")) {
+    resHeaders.set("cache-control", "no-cache, no-transform");
+    resHeaders.set("x-accel-buffering", "no");
+  }
 
   const setCookies = typeof upstream.headers.getSetCookie === "function" ? upstream.headers.getSetCookie() : [];
   for (const cookie of setCookies) {

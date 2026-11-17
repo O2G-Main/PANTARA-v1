@@ -336,6 +336,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     if (typeof EventSource === "undefined") return;
     let closed = false;
     let refreshTimer: number | null = null;
+    let lastNoticeSig: string | null = null;
     const es = new EventSource("/api/v1/notifications/stream", { withCredentials: true });
     const scheduleSync = () => {
       if (closed || refreshTimer !== null) return;
@@ -344,6 +345,21 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         if (!closed) void reload(selectedPeriodRef.current);
       }, 250);
     };
+    const onNotifications = (evt: MessageEvent) => {
+      try {
+        const parsed = JSON.parse(String(evt.data || "{}")) as { notifications?: ServerNotice[] };
+        const list = parsed.notifications ?? [];
+        const sig = list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join("|");
+        setServerNotifications(list);
+        if (lastNoticeSig !== null && lastNoticeSig !== sig) {
+          scheduleSync();
+        }
+        lastNoticeSig = sig;
+      } catch {
+        scheduleSync();
+      }
+    };
+    es.addEventListener("notifications", onNotifications as EventListener);
     es.addEventListener("notification", scheduleSync);
     es.addEventListener("task_updated", scheduleSync);
     es.addEventListener("message", scheduleSync);

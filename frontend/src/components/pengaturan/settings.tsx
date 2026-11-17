@@ -92,8 +92,8 @@ export function GeneralSettings() {
     if (DATA_MODE === "api") {
       setBusy(true);
       try {
-        await api.workspace.createPeriod({ label: pLabel.trim(), start: pStart, end: pEnd, activate: true });
-        await reload();
+        const res = await api.workspace.createPeriod({ label: pLabel.trim(), start: pStart, end: pEnd, activate: true });
+        await reload(res.period.id);
         setNewPeriodOpen(false);
         setPLabel("");
       } catch (err) {

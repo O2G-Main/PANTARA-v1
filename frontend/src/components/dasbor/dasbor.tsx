@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowRight, ArrowUpRight, CalendarClock, ClipboardList, 
 import { CapacityBar, DataBadge, MetricCard, PageHeading, Person, PriorityBadge, SectionTitle } from "@/components/app/parts";
 import { Icon } from "@/components/ui";
 import { FluidArt } from "@/components/ui/fluid-art";
+import { DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { replanMessage } from "@/lib/demo/notifications";
 import { useDemo } from "@/lib/demo/store";
@@ -52,7 +53,7 @@ export function Dasbor() {
   const teamCapacity = complete.reduce((s, m) => s + (m.availableHours ?? 0), 0);
   const teamAllocated = complete.reduce((s, m) => s + allocatedHours(m.id, tasks), 0);
   const next = open[0];
-  const periodLabel = period?.label ?? PERIOD.label;
+  const periodLabel = period?.label ?? (DATA_MODE === "api" ? "aktif" : PERIOD.label);
 
   return (
     <div className="page-enter">

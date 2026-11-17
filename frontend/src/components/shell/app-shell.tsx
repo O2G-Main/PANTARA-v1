@@ -7,6 +7,7 @@ import { ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft, ChevronsLef
 import { lockScroll } from "@/lib/scroll-lock";
 import { navigationForRole, PAGES, SUBNAV, activeNav, activeSub, canAccess, trailOf, type PageRoute } from "@/lib/nav";
 import { Badge, Icon, Modal } from "@/components/ui";
+import { DATA_MODE } from "@/lib/api";
 import { noticesFor } from "@/lib/demo/notifications";
 import { useDemo } from "@/lib/demo/store";
 import { logoutSession, useSession, useSessionReady, type Account } from "@/lib/session";
@@ -14,7 +15,7 @@ import { BrandLockup, BrandWordmark } from "./brand";
 
 // Port shell template Soft Op Dashboard (acuan: K-DASP/MilkGraph components/shell/app-shell.tsx).
 
-const DEFAULT_PERIOD = { label: "Minggu aktif", range: "28 Sep - 2 Okt 2026" };
+const DEFAULT_PERIOD = { label: "Periode aktif", range: DATA_MODE === "api" ? "Memuat..." : "28 Sep - 2 Okt 2026" };
 
 type Panel = "period" | "notifications" | "profile" | "help";
 
@@ -132,7 +133,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
       </main>
       <footer className="workspace-footer">
         <span>Pantara <span className="footer-divider">/</span> Orkestrasi kerja adaptif</span>
-        <span>Diperbarui 09.15 WIB <span className="status-dot" /></span>
+        <span>Diperbarui {demo.now ? new Date(demo.now).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "09.15"} WIB <span className="status-dot" /></span>
       </footer>
     </div>
     {drawer && <dialog ref={drawerRef} id="mobile-navigation" aria-label="Menu navigasi" className="mobile-drawer" onCancel={closeDrawer} onClick={e => { if (e.target === e.currentTarget) closeDrawer(); }}><div className="drawer-content">{renderNavigation(true)}</div></dialog>}
@@ -149,7 +150,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
             </button>
           );
         })}
-        {account.role === "admin" && <p className="small spaced"><Link className="inline-link" href="/pengaturan/umum" onClick={() => setPanel(null)}>Kelola periode di Pengaturan umum</Link></p>}
+        {account.role === "admin" && <p className="small spaced"><Link className="inline-link" href="/pengaturan" onClick={() => setPanel(null)}>Kelola periode di Pengaturan umum</Link></p>}
       </>}
       {panel === "notifications" && <div className="notification-list">
         {notices.length ? notices.map(n => <Link key={n.id} href={n.href} onClick={() => { void demo.markNoticeRead(n.id); setPanel(null); }}><span><strong>{n.title}</strong><span>{n.subtitle}</span></span><Icon icon={ArrowUpRight} /></Link>) : <p className="muted">Tidak ada notifikasi.</p>}

@@ -61,4 +61,23 @@ describe("/api/v1/[...path] runtime proxy", () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: { code: "BAD_GATEWAY" } });
   });
+
+  it("meneruskan x-forwarded-proto HTTPS dan header SSE anti-buffering", async () => {
+    process.env.BACKEND_INTERNAL_URL = "http://pantara-back:8000";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("event: ready\ndata: {}\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const req = new NextRequest("https://pantara.example.com/api/v1/notifications/stream", { method: "GET" });
+    const res = await GET(req, { params: Promise.resolve({ path: ["notifications", "stream"] }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-accel-buffering")).toBe("no");
+    expect(res.headers.get("cache-control")).toBe("no-cache, no-transform");
+    const forwardedHeaders = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
+    expect(forwardedHeaders.get("x-forwarded-proto")).toBe("https");
+  });
 });
