@@ -13,7 +13,7 @@ export interface Competency {
   category: string;
 }
 
-interface MemberCompetency {
+export interface MemberCompetency {
   id: string;
   level: Level;
   source: CompetencySource;
@@ -38,6 +38,7 @@ export interface Member {
   photo?: string;
   /** Peran akses ruang kerja. */
   access: "admin" | "manajer" | "anggota";
+  isActive?: boolean;
 }
 
 export interface Project {

@@ -21,7 +21,7 @@ const FILTERS: { value: TaskStatus | "semua"; label: string }[] = [
 ];
 
 export function TaskList() {
-  const { tasks, names, memberById, projectById } = useDemo();
+  const { tasks, names, memberById, projectById, period, now } = useDemo();
   const params = useSearchParams();
   const router = useRouter();
   const status = (params.get("status") ?? "semua") as TaskStatus | "semua";
@@ -67,7 +67,7 @@ export function TaskList() {
           </tr>;
         })}</tbody>
       </table></div></>}</Paged> : <EmptyState icon={SearchX} title="Tidak ada tugas yang cocok" text="Ubah kata kunci atau filter status dan prioritas." action={<button className="button secondary" onClick={() => { setQuery(""); setPriority("semua"); router.replace("/tugas"); }}>Hapus filter</button>} />}
-      <div className="table-footer"><span>Menampilkan {shown.length} dari {current.length} tugas periode ini</span><span>Diperbarui 09.15 WIB</span></div>
+      <div className="table-footer"><span>Menampilkan {shown.length} dari {current.length} tugas {period ? `(${period.label})` : "periode ini"}</span><span>Diperbarui {now ? new Date(now).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "09.15"} WIB</span></div>
     </section>
   </div>;
 }

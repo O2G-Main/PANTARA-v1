@@ -4,11 +4,13 @@ import { memberLevel } from "./score";
 /** Level minimum dianggap "menguasai": Mandiri (bisa mengerjakan tanpa didampingi). */
 const MASTERY = 2;
 
+export interface AtRiskSkill { competency: Competency; holders: Member[] }
+
 /**
  * Kompetensi rawan: dikuasai paling banyak satu karyawan di level Mandiri ke atas
  * (konsentrasi pengetahuan / truck factor, 01-PRD R4). Yang belum dikuasai siapa pun didahulukan.
  */
-export function atRiskCompetencies(competencies: Competency[], members: Member[]) {
+export function atRiskCompetencies(competencies: Competency[], members: Member[]): AtRiskSkill[] {
   return competencies
     .map(competency => ({ competency, holders: members.filter(m => memberLevel(m, competency.id) >= MASTERY) }))
     .filter(r => r.holders.length <= 1)

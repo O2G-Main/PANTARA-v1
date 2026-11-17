@@ -60,10 +60,15 @@ describe("canAccess", () => {
     expect(canAccess("karyawan", "/tugas/TGS-0142/kandidat")).toBe(false);
   });
 
-  it("membuka semua halaman manajer kecuali area karyawan", () => {
-    expect(canAccess("manajer", "/pengaturan/tagihan")).toBe(true);
+  it("membatasi akses admin, manajer, dan anggota sesuai peran", () => {
+    expect(canAccess("admin", "/pengaturan/tagihan")).toBe(true);
+    expect(canAccess("admin", "/pengaturan/anggota")).toBe(true);
+    expect(canAccess("manajer", "/pengaturan/tagihan")).toBe(false);
+    expect(canAccess("manajer", "/dashboard")).toBe(true);
     expect(canAccess("manajer", "/akun")).toBe(true);
     expect(canAccess("manajer", "/saya")).toBe(false);
+    expect(canAccess("anggota", "/saya")).toBe(true);
+    expect(canAccess("anggota", "/dashboard")).toBe(false);
   });
 });
 

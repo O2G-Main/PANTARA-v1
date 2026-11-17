@@ -9,6 +9,8 @@ const KEYWORDS: Record<string, string[]> = {
   "arsitektur-data": ["skema", "arsitektur", "model data", "migrasi"],
   sql: ["sql", "postgres", "query", "indeks", "database", "basis data"],
   "integrasi-api": ["integrasi", "webhook", "pihak ketiga", "whatsapp"],
+  laravel: ["laravel", "php", "eloquent", "artisan"],
+  flutter: ["flutter", "dart", "android", "ios", "mobile"],
   "technical-writing": ["dokumentasi", "panduan", "manual"],
   react: ["react", "frontend", "halaman", "komponen"],
   tailwind: ["tailwind", "css", "tampilan"],

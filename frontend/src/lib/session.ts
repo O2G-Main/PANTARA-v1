@@ -1,73 +1,251 @@
-import { useMemo, useSyncExternalStore } from "react";
+"use client";
 
-// Masuk statis: akun tetap di kode, sesi hanya email yang disimpan di browser (tanpa sandi).
-// "Ingat saya" memakai localStorage; tanpa itu sesi hilang saat tab ditutup (sessionStorage).
+import { useSyncExternalStore } from "react";
+import { api, DATA_MODE, type AuthUser, type NotifyPrefs } from "@/lib/api";
 
-type Role = "manajer" | "karyawan";
+type Role = "admin" | "manajer" | "anggota" | "karyawan";
 
 export interface Account {
+  id?: string;
+  organizationId?: string;
   email: string;
   name: string;
   title: string;
   initials: string;
   role: Role;
-  /** Rute awal setelah masuk. */
   home: "/dashboard" | "/saya";
-  /** Karyawan di data tim (khusus peran karyawan). */
   memberId?: string;
+  notifyPrefs?: NotifyPrefs;
 }
 
-const ACCOUNTS: (Account & { password: string })[] = [
-  { email: "krisna@pantara.id", password: "pantara2026", name: "Krisna Panca", title: "Manajer tim", initials: "KP", role: "manajer", home: "/dashboard" },
-  { email: "bima@pantara.id", password: "pantara2026", name: "Bima Pradana", title: "Pengembang backend", initials: "BP", role: "karyawan", home: "/saya", memberId: "bima" },
-];
+const KEY = "pantara.session.email";
 
-const KEY = "pantara-session";
-const EVENT = "pantara-session";
+const MOCK_ACCOUNTS: Record<string, Account> = {
+  "krisna@pantara.id": {
+    email: "krisna@pantara.id",
+    name: "Krisna Panca",
+    title: "Kepala Divisi Teknis",
+    initials: "KP",
+    role: "admin",
+    home: "/dashboard",
+  },
+  "manajer@pantara.id": {
+    email: "manajer@pantara.id",
+    name: "Nadia Kusuma",
+    title: "Manajer Proyek",
+    initials: "NK",
+    role: "manajer",
+    home: "/dashboard",
+  },
+  "bima@pantara.id": {
+    email: "bima@pantara.id",
+    name: "Bima Pradana",
+    title: "Pengembang backend",
+    initials: "BP",
+    role: "anggota",
+    home: "/saya",
+    memberId: "bima",
+  },
+};
 
-function toAccount(email: string | null): Account | null {
-  const found = email ? ACCOUNTS.find(a => a.email === email) : undefined;
-  if (!found) return null;
-  const { email: e, name, title, initials, role, home, memberId } = found;
-  return { email: e, name, title, initials, role, home, ...(memberId && { memberId }) };
+const PASSWORDS: Record<string, string> = {
+  "krisna@pantara.id": "pantara2026",
+  "manajer@pantara.id": "pantara2026",
+  "bima@pantara.id": "pantara2026",
+};
+
+const listeners = new Set<() => void>();
+let apiAccount: Account | null = null;
+let apiReady = DATA_MODE === "mock";
+let inflightHydrate: Promise<Account | null> | null = null;
+
+function emit(): void {
+  for (const fn of listeners) fn();
 }
 
-/** Cocokkan email (tanpa beda huruf besar) dan sandi ke akun yang terdaftar. */
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  if (typeof window === "undefined") {
+    return () => listeners.delete(fn);
+  }
+  if (DATA_MODE === "api" && !apiReady && !inflightHydrate) {
+    void hydrateSession();
+  }
+  const onStorage = () => fn();
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(fn);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "PT";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function defaultTitle(role: AuthUser["role"]): string {
+  if (role === "admin") return "Admin Ruang Kerja";
+  if (role === "manajer") return "Manajer Proyek";
+  return "Anggota Tim";
+}
+
+export function authUserToAccount(user: AuthUser): Account {
+  return {
+    id: user.id,
+    organizationId: user.organizationId,
+    email: user.email,
+    name: user.name,
+    title: defaultTitle(user.role),
+    initials: initialsOf(user.name),
+    role: user.role,
+    home: user.home,
+    memberId: user.memberId,
+    notifyPrefs: user.notifyPrefs,
+  };
+}
+
+export function setSessionUser(user: AuthUser | null): void {
+  apiAccount = user ? authUserToAccount(user) : null;
+  apiReady = true;
+  emit();
+}
+
+async function hydrateSession(force = false): Promise<Account | null> {
+  if (DATA_MODE !== "api") {
+    apiReady = true;
+    return readMockAccount();
+  }
+  if (inflightHydrate && !force) return inflightHydrate;
+  inflightHydrate = (async () => {
+    try {
+      const res = await api.auth.me();
+      apiAccount = authUserToAccount(res.user);
+      return apiAccount;
+    } catch {
+      try {
+        const refreshed = await api.auth.refresh();
+        apiAccount = authUserToAccount(refreshed.user);
+        return apiAccount;
+      } catch {
+        apiAccount = null;
+        return null;
+      }
+    } finally {
+      apiReady = true;
+      inflightHydrate = null;
+      emit();
+    }
+  })();
+  return inflightHydrate;
+}
+
+export async function loginWithApi(email: string, password: string, rememberMe: boolean): Promise<Account> {
+  const res = await api.auth.login({ email: email.trim().toLowerCase(), password, rememberMe });
+  const acc = authUserToAccount(res.user);
+  apiAccount = acc;
+  apiReady = true;
+  emit();
+  return acc;
+}
+
+export async function registerWithApi(input: {
+  orgName: string;
+  name: string;
+  email: string;
+  password: string;
+}): Promise<Account> {
+  const res = await api.auth.register({
+    orgName: input.orgName.trim(),
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    password: input.password,
+  });
+  const acc = authUserToAccount(res.user);
+  apiAccount = acc;
+  apiReady = true;
+  emit();
+  return acc;
+}
+
+export async function acceptInviteWithApi(input: {
+  token: string;
+  name: string;
+  password: string;
+}): Promise<Account> {
+  const res = await api.auth.acceptInvite({
+    token: input.token,
+    name: input.name.trim(),
+    password: input.password,
+  });
+  const acc = authUserToAccount(res.user);
+  apiAccount = acc;
+  apiReady = true;
+  emit();
+  return acc;
+}
+
+export async function logoutSession(): Promise<void> {
+  if (DATA_MODE === "api") {
+    try {
+      await api.auth.logout();
+    } catch {
+      // Clear local session state even if network call fails
+    }
+    apiAccount = null;
+    apiReady = true;
+    emit();
+    return;
+  }
+  clearSession();
+}
+
 export function authenticate(email: string, password: string): Account | null {
-  const found = ACCOUNTS.find(a => a.email === email.trim().toLowerCase() && a.password === password);
-  return found ? toAccount(found.email) : null;
+  const key = email.trim().toLowerCase();
+  if (PASSWORDS[key] !== password) return null;
+  return MOCK_ACCOUNTS[key] ?? null;
 }
 
-function readEmail(): string | null {
-  try { return localStorage.getItem(KEY) ?? sessionStorage.getItem(KEY); } catch { return null; }
+function readMockAccount(): Account | null {
+  if (typeof window === "undefined") return null;
+  const email = localStorage.getItem(KEY) ?? sessionStorage.getItem(KEY);
+  return email ? MOCK_ACCOUNTS[email] ?? null : null;
 }
 
-export function saveSession(email: string, remember: boolean) {
-  try {
-    clearStorage();
-    (remember ? localStorage : sessionStorage).setItem(KEY, email);
-  } catch { /* penyimpanan diblokir: sesi tidak bisa dibuat */ }
-  dispatchEvent(new Event(EVENT));
-}
-
-function clearStorage() {
+export function saveSession(email: string, remember: boolean): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(KEY);
   sessionStorage.removeItem(KEY);
+  (remember ? localStorage : sessionStorage).setItem(KEY, email);
+  emit();
 }
 
-export function clearSession() {
-  try { clearStorage(); } catch { /* abaikan */ }
-  dispatchEvent(new Event(EVENT));
+export function clearSession(): void {
+  if (typeof window === "undefined") return;
+  if (DATA_MODE === "api") {
+    apiAccount = null;
+    emit();
+    return;
+  }
+  localStorage.removeItem(KEY);
+  sessionStorage.removeItem(KEY);
+  emit();
 }
 
-function subscribe(onChange: () => void) {
-  addEventListener(EVENT, onChange);
-  addEventListener("storage", onChange);
-  return () => { removeEventListener(EVENT, onChange); removeEventListener("storage", onChange); };
+export function useSession(): Account | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => (DATA_MODE === "api" ? apiAccount : readMockAccount()),
+    () => null,
+  );
 }
 
-/** Akun yang sedang masuk: `undefined` selama render server/hidrasi, `null` bila belum masuk. */
-export function useSession(): Account | null | undefined {
-  const email = useSyncExternalStore(subscribe, readEmail, () => undefined);
-  return useMemo(() => email === undefined ? undefined : toAccount(email), [email]);
+export function useSessionReady(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => (DATA_MODE === "api" ? apiReady : true),
+    () => false,
+  );
 }

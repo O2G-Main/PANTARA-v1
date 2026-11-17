@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { authenticate } from "./session";
+import { authenticate, authUserToAccount } from "./session";
 
 describe("authenticate", () => {
-  it("mengarahkan manajer ke Dashboard dan karyawan ke Beranda saya", () => {
-    expect(authenticate("krisna@pantara.id", "pantara2026")?.home).toBe("/dashboard");
-    expect(authenticate("bima@pantara.id", "pantara2026")).toMatchObject({ role: "karyawan", memberId: "bima", home: "/saya" });
+  it("mengarahkan admin dan manajer ke Dashboard dan anggota ke Beranda saya", () => {
+    expect(authenticate("krisna@pantara.id", "pantara2026")).toMatchObject({ role: "admin", home: "/dashboard" });
+    expect(authenticate("manajer@pantara.id", "pantara2026")).toMatchObject({ role: "manajer", home: "/dashboard" });
+    expect(authenticate("bima@pantara.id", "pantara2026")).toMatchObject({ role: "anggota", memberId: "bima", home: "/saya" });
   });
 
   it("tidak membedakan huruf besar dan spasi di email", () => {
@@ -18,5 +19,27 @@ describe("authenticate", () => {
 
   it("tidak membawa sandi keluar dari modul", () => {
     expect(authenticate("bima@pantara.id", "pantara2026")).not.toHaveProperty("password");
+  });
+
+  it("memetakan AuthUser dari API menjadi Account lengkap", () => {
+    const acc = authUserToAccount({
+      id: "usr-1",
+      organizationId: "org-1",
+      memberId: "bima",
+      email: "bima@pantara.id",
+      name: "Bima Pradana",
+      role: "anggota",
+      home: "/saya",
+      isActive: true,
+      notifyPrefs: { assigned: true, rejected: true, reminder: true },
+    });
+    expect(acc).toMatchObject({
+      id: "usr-1",
+      organizationId: "org-1",
+      initials: "BP",
+      role: "anggota",
+      home: "/saya",
+      memberId: "bima",
+    });
   });
 });

@@ -14,12 +14,12 @@ interface SimRow {
 
 interface Conflict { tone: Tone; text: string }
 
-export function utilTone(util: number): Tone {
-  return util >= 1 ? "crit" : util >= 0.85 ? "warn" : "ok";
+export function utilTone(util: number, overloadAt = 0.85): Tone {
+  return util >= 1 ? "crit" : util >= overloadAt ? "warn" : "ok";
 }
 
 /** Simulasi what-if: akibat skenario penugasan ke beban tim, tanpa mengubah data. */
-export function simulate(task: Task, scenario: Assignment[], members: Member[], tasks: Task[]) {
+export function simulate(task: Task, scenario: Assignment[], members: Member[], tasks: Task[], overloadAt = 0.85) {
   const rows: SimRow[] = members
     .filter(m => m.availableHours !== null)
     .map(m => {
@@ -35,7 +35,7 @@ export function simulate(task: Task, scenario: Assignment[], members: Member[], 
     const util = row.after / row.available;
     const name = row.member.name.split(" ")[0];
     if (util >= 1) conflicts.push({ tone: "crit", text: `${name} jadi ${Math.round(util * 100)}% (${row.after}/${row.available} jam), melebihi kapasitas periode ini` });
-    else if (util >= 0.85) conflicts.push({ tone: "warn", text: `${name} jadi ${Math.round(util * 100)}%, mendekati penuh` });
+    else if (util >= overloadAt) conflicts.push({ tone: "warn", text: `${name} jadi ${Math.round(util * 100)}%, mendekati penuh` });
     for (const t of nearbyDeadlines(s.memberId, task.dueDate, tasks, task.id)) {
       conflicts.push({ tone: "warn", text: `${name} juga memegang "${t.title}" yang tenggatnya berdekatan` });
     }

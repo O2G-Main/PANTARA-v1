@@ -1,9 +1,25 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 
-it("menandai frontend statis sehat tanpa koneksi backend", async () => {
+const ORIGINAL_MODE = process.env.NEXT_PUBLIC_DATA_MODE;
+
+afterEach(() => {
+  if (ORIGINAL_MODE === undefined) {
+    delete process.env.NEXT_PUBLIC_DATA_MODE;
+  } else {
+    process.env.NEXT_PUBLIC_DATA_MODE = ORIGINAL_MODE;
+  }
+});
+
+it("menandai frontend sehat sesuai mode data aktif", async () => {
+  delete process.env.NEXT_PUBLIC_DATA_MODE;
   const { GET } = await import("./route");
-  const response = GET();
+  const apiResponse = GET();
 
-  expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ status: "ok", service: "pantara-frontend", mode: "static" });
+  expect(apiResponse.status).toBe(200);
+  expect(await apiResponse.json()).toEqual({ status: "ok", service: "pantara-frontend", mode: "api" });
+
+  process.env.NEXT_PUBLIC_DATA_MODE = "mock";
+  const mockResponse = GET();
+  expect(mockResponse.status).toBe(200);
+  expect(await mockResponse.json()).toEqual({ status: "ok", service: "pantara-frontend", mode: "mock" });
 });
