@@ -476,7 +476,7 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
       return setError("Tulis alasan minimal 10 karakter supaya manajer bisa menyesuaikan.");
     }
     if (isFreelancer) {
-      dispatch({ type: "updateTask", id, patch: { changeRequest: { memberId, reason: reason.trim(), status: "pending" } } });
+      dispatch({ type: "requestTaskChange", id, memberId, reason: reason.trim(), request: { id: crypto.randomUUID(), sender: me?.name ?? "Anggota", senderRole: "Freelancer", title: `Permintaan perubahan: ${task.title}`, description: reason.trim(), createdAt: new Date().toISOString(), read: false } });
       setRejecting(false);
       setReason("");
       return;

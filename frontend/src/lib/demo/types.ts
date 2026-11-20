@@ -154,3 +154,13 @@ export interface PerformanceReview {
   qualityScore: number | null;
   author: string;
 }
+
+export interface HrRequest {
+  id: string;
+  sender: string;
+  senderRole: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  read: boolean;
+}

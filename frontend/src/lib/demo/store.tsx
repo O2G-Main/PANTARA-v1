@@ -22,12 +22,13 @@ import {
 import { DEFAULT_SETTINGS, type EngineSettings } from "@/lib/engine/score";
 import { useSession } from "@/lib/session";
 import { COMPETENCIES, DECISIONS, MEMBERS, NOW, PROJECTS, TASKS } from "./seed";
-import type { Assignment, Competency, Decision, Member, PerformanceConfig, PerformanceReview, Project, Task, TaskDna, TaskStatus } from "./types";
+import type { Assignment, Competency, Decision, Member, HrRequest, PerformanceConfig, PerformanceReview, Project, Task, TaskDna, TaskStatus } from "./types";
 
 export interface DemoState {
   tasks: Task[];
   members: Member[];
   divisions?: string[];
+  hrRequests?: HrRequest[];
   performanceConfig?: PerformanceConfig;
   performanceReviews?: PerformanceReview[];
   hrSettings?: { weeklyHours: number; reserveHours: number };
@@ -50,6 +51,9 @@ type Action =
   | { type: "assign"; id: string; assignments: Assignment[]; decision: Decision }
   | { type: "reject"; decision: Decision }
   | { type: "setStatus"; id: string; status: TaskStatus; reason?: string }
+  | { type: "sendHrRequest"; request: HrRequest }
+  | { type: "requestTaskChange"; id: string; memberId: string; reason: string; request: HrRequest }
+  | { type: "readHrRequest"; id: string }
   | { type: "performanceConfig"; config: PerformanceConfig }
   | { type: "savePerformanceReview"; review: PerformanceReview }
   | { type: "setHrSettings"; weeklyHours: number; reserveHours: number }
@@ -137,6 +141,12 @@ function reducer(s: DemoState, a: Action): DemoState {
         members: a.previous ? s.members.map((member) => member.division?.trim() === a.previous ? { ...member, division: a.name } : member) : s.members,
       };
     }
+    case "requestTaskChange":
+      return { ...mapTask(s, a.id, (task) => ({ ...task, changeRequest: { memberId: a.memberId, reason: a.reason, status: "pending" } })), hrRequests: [a.request, ...(s.hrRequests ?? [])] };
+    case "sendHrRequest":
+      return { ...s, hrRequests: [a.request, ...(s.hrRequests ?? [])] };
+    case "readHrRequest":
+      return { ...s, hrRequests: (s.hrRequests ?? []).map((request) => request.id === a.id ? { ...request, read: true } : request) };
     case "performanceConfig":
       return { ...s, performanceConfig: a.config };
     case "savePerformanceReview":

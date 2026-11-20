@@ -46,6 +46,8 @@ export interface PageInfo {
 
 const PAGE_MAP = {
   "/mulai": { id: "P9", label: "Siapkan ruang kerja", group: "Ruang kerja", icon: Rocket, description: "Mengisi periode, jam kerja, dan data karyawan lewat impor CSV." },
+  "/pengajuan-hr": { id: "HRQ", label: "Pengajuan ke HR", group: "Akun", icon: Inbox, description: "Kirim pengajuan kepada HR." },
+  "/hr/inbox": { id: "HRI", label: "Inbox", group: "HR", icon: Inbox, description: "Lihat pengajuan untuk HR." },
   "/penilaian": { id: "PEN", label: "Penilaian anggota", group: "Analisis", icon: UserCheck, description: "Menilai anggota per periode." },
   "/hr/pengaturan": { id: "HR5", label: "Pengaturan HR", group: "HR", icon: Settings, description: "Atur jam kerja dan kapasitas cadangan." },
   "/hr/anggota": { id: "HR2", label: "Anggota", group: "HR", icon: Users, description: "Kelola profil anggota." },
@@ -89,7 +91,7 @@ export const PAGES: Record<PageRoute, PageInfo> = PAGE_MAP;
 
 /** Menu sidebar admin (01-PRD §5b). */
 const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
+  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas", "/pengajuan-hr"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
   { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
   { group: "Sistem", routes: ["/pengaturan"] },
@@ -97,26 +99,26 @@ const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
 
 /** Menu sidebar manajer operasional (tanpa pengaturan ruang kerja admin). */
 const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
+  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas", "/pengajuan-hr"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
   { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
 ];
 
 /** Menu sidebar karyawan: hanya halaman miliknya sendiri. */
 export const EMPLOYEE_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil"] },
+  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil", "/pengajuan-hr"] },
 ];
 
 export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan" | "hr";
 
 export function navigationForRole(role: AccessRole): { group: string; routes: PageRoute[] }[] {
-  if (role === "hr") return [{ group: "HR", routes: ["/hr", "/hr/anggota", "/hr/tim", "/hr/riwayat", "/hr/pengaturan"] }];
+  if (role === "hr") return [{ group: "HR", routes: ["/hr", "/hr/anggota", "/hr/tim", "/hr/riwayat", "/hr/inbox", "/hr/pengaturan"] }];
   if (role === "anggota" || role === "karyawan") return EMPLOYEE_NAVIGATION;
   if (role === "admin") return ADMIN_NAVIGATION;
   return NAVIGATION;
 }
 
-const SHARED_ROUTES = ["/akun", "/notifikasi", "/bantuan", "/403"];
+const SHARED_ROUTES = ["/pengajuan-hr", "/akun", "/notifikasi", "/bantuan", "/403"];
 const ADMIN_ONLY_ROUTES = ["/pengaturan", "/mulai"];
 
 /** Hak akses per peran: anggota hanya /saya; manajer operasi; admin penuh kecuali /saya. */

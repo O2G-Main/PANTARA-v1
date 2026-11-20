@@ -17,6 +17,7 @@ export function replanMessage(r: ReplanRisk): string {
 
 /** Notifikasi sesuai peran akun yang masuk. */
 export function noticesFor(s: DemoState, account: Account): Notice[] {
+  if (account.role === "hr") return (s.hrRequests ?? []).filter((request) => !request.read).map((request) => ({ id: `hr-request-${request.id}`, title: request.title, subtitle: `Pengajuan dari ${request.sender}`, href: "/hr/inbox" }));
   return account.memberId ? memberNotices(s, account.memberId) : managerNotices(s);
 }
 
