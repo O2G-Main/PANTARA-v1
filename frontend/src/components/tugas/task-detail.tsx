@@ -25,6 +25,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", projectId: "", dueDate: "", priority: "normal" as Priority });
   const [actual, setActual] = useState("");
+  const [quality, setQuality] = useState("");
   const [actualError, setActualError] = useState("");
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,7 +103,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
       }
       return;
     }
-    if (actualHours !== undefined) dispatch({ type: "updateTask", id, patch: { actualHours } });
+    if (actualHours !== undefined) dispatch({ type: "updateTask", id, patch: { actualHours, completedAt: today, qualityScore: quality.trim() === "" ? undefined : Number(quality) } });
     dispatch({ type: "setStatus", id, status });
     setFinishing(false);
   };
@@ -375,6 +376,9 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
               if (!actual.trim() || !Number.isFinite(value) || value <= 0) {
                 return setActualError("Isi perkiraan jam aktual, lebih dari 0.");
               }
+              if (quality.trim() && (!Number.isFinite(Number(quality)) || Number(quality) < 0 || Number(quality) > 100)) {
+                return setActualError("Nilai kualitas harus antara 0 dan 100.");
+              }
               void handleSetStatus("selesai", value);
             }}
           >
@@ -396,6 +400,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
                 aria-describedby={actualError ? "actual-error" : undefined}
               />
             </label>
+            {DATA_MODE === "mock" && <label className="field spaced"><span className="field-label">Kualitas hasil (0–100, opsional)</span><input className="input" type="number" min="0" max="100" value={quality} onChange={(event) => setQuality(event.target.value)} /></label>}
             {actualError && (
               <p id="actual-error" className="field-error spaced" role="alert">
                 {actualError}

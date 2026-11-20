@@ -46,6 +46,7 @@ export interface PageInfo {
 
 const PAGE_MAP = {
   "/mulai": { id: "P9", label: "Siapkan ruang kerja", group: "Ruang kerja", icon: Rocket, description: "Mengisi periode, jam kerja, dan data karyawan lewat impor CSV." },
+  "/penilaian": { id: "PEN", label: "Penilaian anggota", group: "Analisis", icon: UserCheck, description: "Menilai anggota per periode." },
   "/hr/pengaturan": { id: "HR5", label: "Pengaturan HR", group: "HR", icon: Settings, description: "Atur jam kerja dan kapasitas cadangan." },
   "/hr/anggota": { id: "HR2", label: "Anggota", group: "HR", icon: Users, description: "Kelola profil anggota." },
   "/hr/tim": { id: "HR3", label: "Tim & divisi", group: "HR", icon: Building2, description: "Lihat anggota menurut tim dan divisi." },
@@ -90,7 +91,7 @@ export const PAGES: Record<PageRoute, PageInfo> = PAGE_MAP;
 const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
   { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
-  { group: "Analisis", routes: ["/keputusan", "/laporan"] },
+  { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
   { group: "Sistem", routes: ["/pengaturan"] },
 ];
 
@@ -98,7 +99,7 @@ const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
 const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
   { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
-  { group: "Analisis", routes: ["/keputusan", "/laporan"] },
+  { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
 ];
 
 /** Menu sidebar karyawan: hanya halaman miliknya sendiri. */

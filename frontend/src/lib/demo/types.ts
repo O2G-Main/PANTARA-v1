@@ -100,6 +100,8 @@ export interface Task {
   changeRequest?: { memberId: string; reason: string; status: "pending" | "reviewed" };
   /** Jam aktual yang dicatat saat tugas ditandai selesai (satu angka, bukan time tracking); dasar kalibrasi estimasi. */
   actualHours?: number;
+  completedAt?: string;
+  qualityScore?: number;
 }
 
 export interface Decision {
@@ -125,4 +127,30 @@ export interface Weights {
   a: number;
   r: number;
   f: number;
+}
+
+
+export interface PerformanceCriterion {
+  id: string;
+  name: string;
+  weight: number;
+  active: boolean;
+}
+
+export interface PerformanceConfig {
+  automaticWeight: number;
+  criteria: PerformanceCriterion[];
+}
+
+export interface PerformanceReview {
+  id: string;
+  memberId: string;
+  period: string;
+  note: string;
+  criteria: { id: string; name: string; weight: number; score: number }[];
+  automaticWeight: number;
+  automaticScore: number | null;
+  onTimeScore: number | null;
+  qualityScore: number | null;
+  author: string;
 }
