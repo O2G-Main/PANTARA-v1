@@ -47,10 +47,10 @@ export function PerformanceDetail({ member, month, reviews, tasks }: { member: M
   return <>
     <section className="card spaced"><Person member={member} /><p className="muted">{[member.division, member.team].filter(Boolean).join(" · ") || "Penempatan belum diisi"}</p>
       <SectionTitle title={result ? result.total === null ? "Data belum lengkap" : points(result.total) : "Belum dinilai"} subtitle={monthName(month)} />
-      {review && result && <><div className="hr-overview-grid spaced"><div><h3>Skor otomatis</h3><p>{points(review.automaticScore)} · Bobot {review.automaticWeight}%</p>
-        <p>Ketepatan waktu · {review.onTimeScore === null ? "Belum lengkap" : Math.round(review.onTimeScore) + "%"}</p><p>Kualitas · {points(review.qualityScore)}</p></div>
-        <div><h3>Penilaian manajer</h3><p>{points(result.manual)} · Bobot {100 - review.automaticWeight}%</p>
-        {review.criteria.map(item => <p key={item.id}>{item.name} · {points(item.score)} · bobot {item.weight}</p>)}</div></div>
+      {review && result && <><div className="hr-overview-grid spaced"><div className="hr-score-card"><h3>Skor otomatis</h3><p>{points(review.automaticScore)} · Bobot {review.automaticWeight}%</p>
+        {review.automaticScore !== null && <progress aria-label="Skor otomatis" value={review.automaticScore} max={100} />}<p>Ketepatan waktu · {review.onTimeScore === null ? "Belum lengkap" : Math.round(review.onTimeScore) + "%"}</p><p>Kualitas · {points(review.qualityScore)}</p></div>
+        <div className="hr-score-card"><h3>Penilaian manajer</h3><p>{points(result.manual)} · Bobot {100 - review.automaticWeight}%</p>
+        {result.manual !== null && <progress aria-label="Penilaian manajer" value={result.manual} max={100} />}{review.criteria.map(item => <p key={item.id}>{item.name} · {points(item.score)} · bobot {item.weight}</p>)}</div></div>
         <h3 className="spaced">Catatan manajer</h3><p>{review.note || "Belum ada catatan."}</p><small>{review.author}</small></>}
     </section>
     <Trend month={month} reviews={ownReviews} />

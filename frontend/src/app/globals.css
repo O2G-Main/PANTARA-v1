@@ -1326,3 +1326,12 @@ html:active-view-transition-type(leave-login)::view-transition-old(login-visual)
 .hr-legend[data-status=incomplete] i {background:#d09427}
 .hr-task-count {font-size:2rem;margin:.5rem 0}
 .hr-overview-grid progress {display:block;width:100%;height:.6rem;accent-color:#11776e;margin:.65rem 0}
+.hr-people-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.hr-person-card,.hr-score-card {display:grid;align-content:start;gap:.7rem;border:1px solid var(--border);border-radius:1rem;padding:1rem;overflow-wrap:anywhere;background:var(--surface,white)}
+.hr-person-card:hover,.hr-person-card:focus-visible {border-color:#11776e}
+.hr-card-result {display:flex;align-items:center;justify-content:space-between;gap:.5rem;border-top:1px solid var(--border);padding-top:.7rem}
+.hr-card-result span {border-radius:2rem;padding:.25rem .6rem;background:#e9edec;color:#414d49;font-size:.8rem}
+.hr-card-result [data-status=complete] {background:#d9f1e9;color:#145546}
+.hr-card-result [data-status=incomplete] {background:#fff0cf;color:#78520a}
+@media(max-width:1150px){.hr-people-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.hr-people-grid{grid-template-columns:1fr}}

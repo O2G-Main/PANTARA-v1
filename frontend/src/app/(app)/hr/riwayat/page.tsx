@@ -50,9 +50,12 @@ export default function HrHistory() {
     {selected ? <><Link className="button spaced" href={href("")}>Kembali ke ringkasan</Link>
       <PerformanceDetail member={selected.member} month={month} reviews={performanceReviews} tasks={tasks} /></> :
     <section className="card spaced"><SectionTitle title="Ringkasan anggota" subtitle={shown.length + " anggota · " + monthName(month)} />
-      {shown.length ? <div className="table-scroll stack-table"><table><thead><tr><th>Anggota</th><th>Divisi</th><th>Tugas selesai</th><th>Status penilaian</th><th>Skor</th><th>Aksi</th></tr></thead><tbody>
-        {shown.map(({ member, status, score }) => <tr key={member.id}><td><Person member={member} /></td><td data-label="Divisi">{member.division || "Belum diisi"}</td><td data-label="Tugas selesai">{completed.filter(task => task.assignments.some(a => a.memberId === member.id)).length}</td><td data-label="Status">{statuses[status]}</td><td data-label="Skor">{score === null ? "—" : Math.round(score) + " / 100"}</td><td><Link className="button" href={href(member.id)} aria-label={"Lihat detail " + member.name}>Lihat detail</Link></td></tr>)}
-      </tbody></table></div> : <p>Tidak ada anggota yang cocok dengan filter ini.</p>}
+      {shown.length ? <div className="hr-people-grid">
+        {shown.map(({ member, status, score }) => <Link key={member.id} className="hr-person-card" href={href(member.id)}>
+          <Person member={member} /><p className="muted">{member.employmentType === "freelancer" ? "Freelancer" : "Karyawan"} · {member.division || "Divisi belum diisi"}</p>
+          <p>{completed.filter(task => task.assignments.some(a => a.memberId === member.id)).length} tugas selesai</p>
+          <div className="hr-card-result"><span data-status={status}>{statuses[status]}</span>{score !== null && <strong>{Math.round(score)} / 100</strong>}</div>
+        </Link>)}</div> : <p>Tidak ada anggota yang cocok dengan filter ini.</p>}
     </section>}
   </div>;
 }
