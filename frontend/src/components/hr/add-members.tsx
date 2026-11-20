@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice, employmentChoices } from "@/components/hr/filter-combobox";
 import { useCallback, useState } from "react";
 import { Upload } from "lucide-react";
 import { Icon } from "@/components/ui";
@@ -139,7 +140,7 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
       {status && <p className="full" role="status">{status}</p>}
       {([["name", "Nama lengkap"], ["email", "Email"], ["role", "Jabatan"], ["team", "Tim (opsional)"]] as const).map(([key, label]) => <label className="field full" key={key}><span className="field-label">{label}</span><input className="input" value={profile[key]} onChange={(event) => setProfile({ ...profile, [key]: event.target.value })} /></label>)}
       <label className="field full"><span className="field-label">Divisi</span><input className="input" value={division} readOnly /></label>
-      <label className="field"><span className="field-label">Jenis hubungan kerja</span><select className="input" value={profile.employmentType} onChange={(event) => setProfile({ ...profile, employmentType: event.target.value as "karyawan" | "freelancer" })}><option value="karyawan">Karyawan</option><option value="freelancer">Freelancer</option></select></label>
+      <Choice label="Jenis hubungan kerja" choices={employmentChoices} value={profile.employmentType} onChange={value => setProfile({ ...profile, employmentType: value as "karyawan" | "freelancer" })} />
       <label className="field"><span className="field-label">Jam kerja per minggu</span><input className="input" type="number" min="0" max="168" required value={profile.weeklyLimit} onChange={(event) => setProfile({ ...profile, weeklyLimit: Number(event.target.value) })} /></label>
       {error && <p className="full field-error" role="alert">{error}</p>}
       <div className="toolbar full"><button className="button" type="button" onClick={() => { setError(""); setStep("choose"); }}>Kembali</button><button className="button primary" type="submit" disabled={reading}>Simpan anggota</button></div>

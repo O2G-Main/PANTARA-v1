@@ -1309,3 +1309,8 @@ html:active-view-transition-type(leave-login)::view-transition-old(login-visual)
 .hr-options [data-part=item], .hr-options p { padding: .55rem .75rem; }
 .hr-options small { display: block; }
 .hr-options [data-highlighted] { background: var(--accent-soft, #deefeb); border-radius: .5rem; }
+.hr-month-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.25rem; }
+.hr-month-grid button { padding:.5rem .25rem;border-radius:.6rem; }
+.hr-month-grid button:hover,.hr-options [data-selected] { background:var(--accent-soft,#deefeb); }
+.hr-month-grid [aria-pressed=true] { background:#0f766e;color:white; }
+.hr-select-trigger,[data-scope=combobox] [data-part=input] { min-height:44px;border-radius:.75rem; }

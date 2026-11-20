@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice, employmentChoices } from "@/components/hr/filter-combobox";
 import { useSearchParams } from "next/navigation";
 import { gaps, missing } from "@/lib/hr/overview";
 import { updateQuery } from "@/lib/hr/query";
@@ -109,7 +110,7 @@ export default function HrMembers() {
     <section className="card">
       <div className="toolbar">
         <label className="search-field"><Icon icon={Search} size={16} /><span className="sr-only">Cari anggota</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, jabatan, tim, atau divisi" /></label>
-        <label className="filter-select"><span className="sr-only">Jenis hubungan kerja</span><select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="semua">Semua jenis</option><option value="karyawan">Karyawan</option><option value="freelancer">Freelancer</option></select></label>
+        <Choice label="Jenis hubungan kerja" choices={{ semua: "Semua jenis", ...employmentChoices }} value={filter} onChange={setFilter} />
       </div>
       <div className="table-scroll stack-table spaced"><table><thead><tr><th>Anggota</th><th>Jenis</th><th>Tim</th><th>Divisi</th><th>Jam kerja</th><th>Aksi</th></tr></thead><tbody>
         {shown.map((member) => <tr key={member.id}><td><Person member={member} /></td><td data-label="Jenis">{member.employmentType === "freelancer" ? "Freelancer" : "Karyawan"}</td><td data-label="Tim">{member.team || "Belum diisi"}</td><td data-label="Divisi">{member.division || "Belum diisi"}</td><td data-label="Jam kerja">{member.weeklyLimit} jam/minggu</td><td><button className="button" onClick={() => { setError(""); setEditing(member); }}>Ubah profil</button></td></tr>)}
@@ -134,7 +135,7 @@ export default function HrMembers() {
     </Modal>}
     {editing && <Modal title="Profil kerja anggota" onClose={() => setEditing(null)}><form onSubmit={save} className="form-grid">
       {([["name", "Nama lengkap"], ["email", "Email"], ["role", "Jabatan"], ["team", "Tim"], ["division", "Divisi"]] as const).map(([key, label]) => <label className="field full" key={key}><span className="field-label">{label}</span><input className="input" value={editing[key] ?? ""} onChange={(event) => setEditing({ ...editing, [key]: event.target.value })} /></label>)}
-      <label className="field"><span className="field-label">Jenis hubungan kerja</span><select className="input" value={editing.employmentType ?? "karyawan"} onChange={(event) => setEditing({ ...editing, employmentType: event.target.value as "karyawan" | "freelancer" })}><option value="karyawan">Karyawan</option><option value="freelancer">Freelancer</option></select></label>
+      <Choice label="Jenis hubungan kerja" choices={employmentChoices} value={editing.employmentType ?? "karyawan"} onChange={value => setEditing({ ...editing, employmentType: value as "karyawan" | "freelancer" })} />
       {editing.employmentType === "freelancer" ? <>
         <label className="field"><span className="field-label">Jam disepakati per minggu</span><input className="input" type="number" min="0" max="168" required value={editing.weeklyLimit} onChange={(event) => setEditing({ ...editing, weeklyLimit: Number(event.target.value) })} /></label>
         <label className="field"><span className="field-label">Ketersediaan periode aktif</span><input className="input" type="number" min="0" max="168" value={editing.availableHours ?? ""} onChange={(event) => setEditing({ ...editing, availableHours: event.target.value === "" ? null : Number(event.target.value) })} /></label>

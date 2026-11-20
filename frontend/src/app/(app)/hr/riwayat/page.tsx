@@ -1,6 +1,7 @@
 "use client";
 
-import { FilterCombobox } from "@/components/hr/filter-combobox";
+import { MonthPicker } from "@/components/hr/month-picker";
+import { Choice, FilterCombobox } from "@/components/hr/filter-combobox";
 import { PerformanceDetail } from "@/components/hr/performance-detail";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -35,10 +36,10 @@ export default function HrHistory() {
 
   return <div className="page-enter"><PageHeading title="Riwayat & performa" subtitle="Tinjau hasil kerja dan dasar penilaian per bulan." />
     <section className="card"><div className="toolbar">
-      <label className="field">Bulan penilaian<input type="month" value={month} onChange={event => updateQuery({ month: event.target.value })} /></label>
+      <MonthPicker value={month} onChange={month => updateQuery({ month })} />
       {!selected && <><FilterCombobox label="Anggota" placeholder="Cari nama atau email" options={members.map(member => ({ label: member.name, detail: member.email }))} value={query} onChange={q => updateQuery({ q })} />
         <FilterCombobox label="Divisi" placeholder="Semua divisi" options={divisions.map(label => ({ label }))} value={division} onChange={division => updateQuery({ division })} />
-        <label className="field">Status penilaian<select value={status} onChange={event => updateQuery({ status: event.target.value })}><option value="">Semua status</option>{Object.entries(statuses).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></>}
+        <Choice label="Status penilaian" choices={{ "": "Semua status", ...statuses }} value={status} onChange={status => updateQuery({ status })} /></>}
     </div></section>
     {selected ? <><Link className="button spaced" href={href("")}>Kembali ke ringkasan</Link>
       <PerformanceDetail member={selected.member} month={month} reviews={performanceReviews} tasks={tasks} /></> :
