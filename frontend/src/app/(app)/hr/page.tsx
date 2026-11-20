@@ -4,12 +4,13 @@ import Link from "next/link";
 import { Building2, Users } from "lucide-react";
 import { MetricCard, PageHeading, SectionTitle } from "@/components/app/parts";
 import { CountUp } from "@/components/hr/count-up";
+import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { gaps, missing, monthlyResults, monthName, statuses } from "@/lib/hr/overview";
 
 export default function HrPage() {
-  const { members, divisions, hrRequests = [], performanceReviews = [], period, today } = useDemo();
-  const month = (period?.start || today).slice(0, 7);
+  const { members, divisions, hrRequests = [], performanceReviews = [], period } = useDemo();
+  const month = (period?.start || PERIOD.start).slice(0, 7);
   const queue = hrRequests.filter(request => !request.handled).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const results = monthlyResults(members, performanceReviews, month);
   const divisionCount = new Set([...(divisions ?? []), ...members.map(member => member.division?.trim()).filter(Boolean)]).size;

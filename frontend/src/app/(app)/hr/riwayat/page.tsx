@@ -1,17 +1,19 @@
 "use client";
 
+import { PerformanceDetail } from "@/components/hr/performance-detail";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PageHeading, Person, SectionTitle } from "@/components/app/parts";
+import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { monthlyResults, monthName, statuses } from "@/lib/hr/overview";
 import { updateQuery } from "@/lib/hr/query";
 
 export default function HrHistory() {
-  const { members, tasks, performanceReviews = [], today, period } = useDemo();
+  const { members, tasks, performanceReviews = [], period } = useDemo();
   const params = useSearchParams();
   const rawMonth = params.get("month") ?? "";
-  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) ? rawMonth : (period?.start || today).slice(0, 7);
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) ? rawMonth : (period?.start || PERIOD.start).slice(0, 7);
   const query = params.get("q") ?? "";
   const division = params.get("division") ?? "";
   const status = params.get("status") ?? "";
@@ -40,7 +42,7 @@ export default function HrHistory() {
         <label className="field">Status penilaian<select value={status} onChange={event => updateQuery({ status: event.target.value })}><option value="">Semua status</option>{Object.entries(statuses).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label></>}
     </div></section>
     {selected ? <><Link className="button spaced" href={href("")}>Kembali ke ringkasan</Link>
-      <section className="card spaced"><Person member={selected.member} /><p>{statuses[selected.status]} · {monthName(month)}</p></section></> :
+      <PerformanceDetail member={selected.member} month={month} reviews={performanceReviews} tasks={tasks} /></> :
     <section className="card spaced"><SectionTitle title="Ringkasan anggota" subtitle={shown.length + " anggota · " + monthName(month)} />
       {shown.length ? <div className="table-scroll stack-table"><table><thead><tr><th>Anggota</th><th>Divisi</th><th>Tugas selesai</th><th>Status penilaian</th><th>Skor</th><th>Aksi</th></tr></thead><tbody>
         {shown.map(({ member, status, score }) => <tr key={member.id}><td><Person member={member} /></td><td data-label="Divisi">{member.division || "Belum diisi"}</td><td data-label="Tugas selesai">{completed.filter(task => task.assignments.some(a => a.memberId === member.id)).length}</td><td data-label="Status">{statuses[status]}</td><td data-label="Skor">{score === null ? "—" : Math.round(score) + " / 100"}</td><td><Link className="button" href={href(member.id)} aria-label={"Lihat detail " + member.name}>Lihat detail</Link></td></tr>)}
