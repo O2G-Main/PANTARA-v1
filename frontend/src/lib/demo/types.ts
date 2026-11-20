@@ -24,12 +24,17 @@ export interface Member {
   name: string;
   initials: string;
   role: string;
+  employmentType?: "karyawan" | "freelancer";
+  team?: string;
+  division?: string;
   email: string;
   /** Jam tersedia di periode aktif; null = belum diisi karyawan. */
   availableHours: number | null;
   leaveDates: string[];
   /** Batas kerja mingguan yang ditentukan karyawan (syarat wajib). */
   weeklyLimit: number;
+  workHoursOverride?: number;
+  reserveHoursOverride?: number;
   competencies: MemberCompetency[];
   /** Kompetensi yang disukai / dihindari (faktor preferensi di R). */
   prefers: string[];
@@ -92,6 +97,7 @@ export interface Task {
   /** Kompetensi yang dipakai tugas selesai (riwayat relevan). */
   competencyIds: string[];
   responseReason?: string;
+  changeRequest?: { memberId: string; reason: string; status: "pending" | "reviewed" };
   /** Jam aktual yang dicatat saat tugas ditandai selesai (satu angka, bukan time tracking); dasar kalibrasi estimasi. */
   actualHours?: number;
 }

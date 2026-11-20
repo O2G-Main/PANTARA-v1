@@ -237,6 +237,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
           </Link>
         </div>
       )}
+      {task.changeRequest?.status === "pending" && <div className="decision-banner warn"><span><strong>Permintaan perubahan freelancer</strong><span>{memberById(task.changeRequest.memberId)?.name ?? "Anggota"}: {task.changeRequest.reason}</span><button className="button" type="button" onClick={() => dispatch({ type: "updateTask", id, patch: { changeRequest: { ...task.changeRequest!, status: "reviewed" } } })}>Tandai sudah ditinjau</button></span></div>}
       {task.status === "belum" && task.responseReason && (
         <div className="decision-banner warn">
           <Icon icon={CircleAlert} />

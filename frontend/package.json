@@ -12,11 +12,16 @@
     "knip": "knip"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "csstype": "^3.2.4",
     "lenis": "^1.3.27",
     "lucide-react": "^1.57.0",
+    "mammoth": "^1.13.0",
     "next": "16.4.6",
+    "pdfjs-dist": "^6.5.438",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tailwind-merge": "^3.7.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

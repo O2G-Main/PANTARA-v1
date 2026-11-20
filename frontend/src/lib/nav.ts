@@ -46,6 +46,11 @@ export interface PageInfo {
 
 const PAGE_MAP = {
   "/mulai": { id: "P9", label: "Siapkan ruang kerja", group: "Ruang kerja", icon: Rocket, description: "Mengisi periode, jam kerja, dan data karyawan lewat impor CSV." },
+  "/hr/pengaturan": { id: "HR5", label: "Pengaturan HR", group: "HR", icon: Settings, description: "Atur jam kerja dan kapasitas cadangan." },
+  "/hr/anggota": { id: "HR2", label: "Anggota", group: "HR", icon: Users, description: "Kelola profil anggota." },
+  "/hr/tim": { id: "HR3", label: "Tim & divisi", group: "HR", icon: Building2, description: "Lihat anggota menurut tim dan divisi." },
+  "/hr/riwayat": { id: "HR4", label: "Riwayat & performa", group: "HR", icon: History, description: "Tinjau riwayat pekerjaan anggota." },
+  "/hr": { id: "HR", label: "Dashboard HR", group: "Ruang kerja", icon: Users, description: "Meninjau data dan riwayat kerja karyawan." },
   "/dashboard": { id: "P10", label: "Dashboard", group: "Ruang kerja", icon: LayoutDashboard, description: "Melihat apa yang perlu diputuskan sekarang." },
   "/tugas": { id: "P11", label: "Tugas", group: "Ruang kerja", icon: ListTodo, description: "Mengelola daftar tugas, alokasi kerja karyawan, dan status penugasan." },
   "/tugas/baru": { id: "P12", label: "Buat tugas", group: "Tugas", icon: FilePlus2, description: "Memasukkan tugas baru: judul, deskripsi, tenggat, dan prioritas." },
@@ -101,9 +106,10 @@ export const EMPLOYEE_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
   { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil"] },
 ];
 
-export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan";
+export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan" | "hr";
 
-export function navigationForRole(role: AccessRole) {
+export function navigationForRole(role: AccessRole): { group: string; routes: PageRoute[] }[] {
+  if (role === "hr") return [{ group: "HR", routes: ["/hr", "/hr/anggota", "/hr/tim", "/hr/riwayat", "/hr/pengaturan"] }];
   if (role === "anggota" || role === "karyawan") return EMPLOYEE_NAVIGATION;
   if (role === "admin") return ADMIN_NAVIGATION;
   return NAVIGATION;
@@ -115,6 +121,8 @@ const ADMIN_ONLY_ROUTES = ["/pengaturan", "/mulai"];
 /** Hak akses per peran: anggota hanya /saya; manajer operasi; admin penuh kecuali /saya. */
 export function canAccess(role: AccessRole, pathname: string): boolean {
   if (SHARED_ROUTES.some(href => isActive(pathname, href))) return true;
+  if (role === "hr") return isActive(pathname, "/hr");
+  if (isActive(pathname, "/hr")) return false;
   if (role === "karyawan" || role === "anggota") return isActive(pathname, "/saya");
   if (isActive(pathname, "/saya")) return false;
   if (ADMIN_ONLY_ROUTES.some(href => isActive(pathname, href))) return role === "admin";

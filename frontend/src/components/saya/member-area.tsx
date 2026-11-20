@@ -467,11 +467,19 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
     router.push("/saya");
   };
 
+  const isFreelancer = DATA_MODE === "mock" && me?.employmentType === "freelancer";
+
   const reject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
     if (reason.trim().length < 10) {
       return setError("Tulis alasan minimal 10 karakter supaya manajer bisa menyesuaikan.");
+    }
+    if (isFreelancer) {
+      dispatch({ type: "updateTask", id, patch: { changeRequest: { memberId, reason: reason.trim(), status: "pending" } } });
+      setRejecting(false);
+      setReason("");
+      return;
     }
     if (DATA_MODE === "api") {
       setBusy(true);
@@ -499,7 +507,7 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
             <>
               <button className="button secondary" disabled={busy} onClick={() => setRejecting(true)}>
                 <Icon icon={X} size={16} />
-                Tolak dengan alasan
+                {isFreelancer ? "Minta perubahan" : "Tolak dengan alasan"}
               </button>
               <button className="button primary" disabled={busy} onClick={() => void accept()}>
                 <Icon icon={Check} />
@@ -518,6 +526,7 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
           </span>
         </div>
       )}
+      {isFreelancer && task.changeRequest?.memberId === memberId && task.changeRequest.status === "pending" && <div className="decision-banner"><span><strong>Permintaan perubahan dikirim</strong><span>Menunggu tinjauan manajer.</span></span></div>}
       {task.status !== "menunggu" && (
         <div className="decision-banner">
           <Icon icon={CircleCheck} />
@@ -569,9 +578,9 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
         </section>
       </div>
       {rejecting && (
-        <Modal title="Tolak penugasan" onClose={() => setRejecting(false)}>
+        <Modal title={isFreelancer ? "Minta perubahan" : "Tolak penugasan"} onClose={() => setRejecting(false)}>
           <form onSubmit={(e) => void reject(e)}>
-            <p className="dialog-summary">Tugas kembali ke manajer untuk dicarikan kandidat lain. Alasanmu ditampilkan di detail tugas.</p>
+            <p className="dialog-summary">{isFreelancer ? "Jelaskan perubahan waktu atau beban yang kamu perlukan. Manajer akan meninjau permintaanmu." : "Tugas kembali ke manajer untuk dicarikan kandidat lain. Alasanmu ditampilkan di detail tugas."}</p>
             <label className="field">
               <span className="field-label">Alasan (wajib)</span>
               <textarea
@@ -594,7 +603,7 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
               </button>
               <button type="submit" className="button primary" disabled={busy}>
                 <Icon icon={MessageSquareWarning} size={16} />
-                {busy ? "Mengirim..." : "Kirim penolakan"}
+                {busy ? "Mengirim..." : isFreelancer ? "Kirim permintaan" : "Kirim penolakan"}
               </button>
             </div>
           </form>

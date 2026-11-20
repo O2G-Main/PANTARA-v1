@@ -27,6 +27,8 @@ import type { Assignment, Competency, Decision, Member, Project, Task, TaskDna, 
 export interface DemoState {
   tasks: Task[];
   members: Member[];
+  divisions?: string[];
+  hrSettings?: { weeklyHours: number; reserveHours: number };
   projects: Project[];
   competencies: Competency[];
   decisions: Decision[];
@@ -46,7 +48,10 @@ type Action =
   | { type: "assign"; id: string; assignments: Assignment[]; decision: Decision }
   | { type: "reject"; decision: Decision }
   | { type: "setStatus"; id: string; status: TaskStatus; reason?: string }
+  | { type: "setHrSettings"; weeklyHours: number; reserveHours: number }
   | { type: "upsertMember"; member: Member }
+  | { type: "placeMembers"; ids: string[]; division: string; team?: string }
+  | { type: "saveDivision"; name: string; previous?: string }
   | { type: "addCompetency"; competency: Competency }
   | { type: "upsertCompetency"; competency: Competency }
   | { type: "removeCompetency"; id: string }
@@ -120,6 +125,18 @@ function reducer(s: DemoState, a: Action): DemoState {
         assignments: a.status === "belum" ? [] : t.assignments,
         remainingHours: a.status === "selesai" ? 0 : t.remainingHours,
       }));
+    case "saveDivision": {
+      const divisions = (s.divisions ?? []).filter((name) => name !== a.previous);
+      return {
+        ...s,
+        divisions: [...divisions, a.name],
+        members: a.previous ? s.members.map((member) => member.division?.trim() === a.previous ? { ...member, division: a.name } : member) : s.members,
+      };
+    }
+    case "setHrSettings":
+      return { ...s, hrSettings: { weeklyHours: a.weeklyHours, reserveHours: a.reserveHours } };
+    case "placeMembers":
+      return { ...s, members: s.members.map((member) => a.ids.includes(member.id) ? { ...member, division: a.division, team: a.team ?? member.team } : member) };
     case "upsertMember":
       return {
         ...s,
