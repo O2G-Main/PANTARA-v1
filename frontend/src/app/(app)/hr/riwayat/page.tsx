@@ -1,5 +1,6 @@
 "use client";
 
+import { MonthlySummary } from "@/components/hr/monthly-summary";
 import { MonthPicker } from "@/components/hr/month-picker";
 import { Choice, FilterCombobox } from "@/components/hr/filter-combobox";
 import { PerformanceDetail } from "@/components/hr/performance-detail";
@@ -23,8 +24,12 @@ export default function HrHistory() {
   const results = monthlyResults(members, performanceReviews, month);
   const selected = results.find(row => row.member.id === params.get("member"));
   const completed = tasks.filter(task => task.status === "selesai" && task.completedAt?.startsWith(month));
-  const shown = results.filter(row => (!status || row.status === status) && (!division || row.member.division?.trim() === division) &&
+  const scoped = results.filter(row => (!division || row.member.division?.trim() === division) &&
     (row.member.name + " " + row.member.email).toLowerCase().includes(query.trim().toLowerCase()));
+
+  const shown = scoped.filter(row => !status || row.status === status);
+  const ids = new Set(scoped.map(row => row.member.id));
+  const scopedTasks = completed.filter(task => task.assignments.some(a => ids.has(a.memberId)));
 
   function href(member: string) {
     const next = new URLSearchParams(params);
@@ -41,6 +46,7 @@ export default function HrHistory() {
         <FilterCombobox label="Divisi" placeholder="Semua divisi" options={divisions.map(label => ({ label }))} value={division} onChange={division => updateQuery({ division })} />
         <Choice label="Status penilaian" choices={{ "": "Semua status", ...statuses }} value={status} onChange={status => updateQuery({ status })} /></>}
     </div></section>
+    {!selected && <MonthlySummary rows={scoped} tasks={scopedTasks} status={status} select={status => updateQuery({ status })} />}
     {selected ? <><Link className="button spaced" href={href("")}>Kembali ke ringkasan</Link>
       <PerformanceDetail member={selected.member} month={month} reviews={performanceReviews} tasks={tasks} /></> :
     <section className="card spaced"><SectionTitle title="Ringkasan anggota" subtitle={shown.length + " anggota · " + monthName(month)} />

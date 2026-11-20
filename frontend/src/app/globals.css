@@ -1314,3 +1314,15 @@ html:active-view-transition-type(leave-login)::view-transition-old(login-visual)
 .hr-month-grid button:hover,.hr-options [data-selected] { background:var(--accent-soft,#deefeb); }
 .hr-month-grid [aria-pressed=true] { background:#0f766e;color:white; }
 .hr-select-trigger,[data-scope=combobox] [data-part=input] { min-height:44px;border-radius:.75rem; }
+.hr-ring-row,.hr-legend {display:flex;align-items:center;gap:.7rem}
+.hr-ring-row {flex-wrap:wrap;margin-top:1rem;gap:1.5rem}
+.hr-ring {width:6rem;height:6rem;display:grid;place-items:center;border-radius:50%}
+.hr-ring strong {display:grid;place-items:center;border-radius:50%;background:var(--surface,white);width:4.8rem;height:4.8rem;font-size:1.35rem}
+.hr-legend {padding:.3rem;border-radius:.4rem;width:100%;text-align:left}
+.hr-legend[aria-pressed=true] {text-decoration:underline}
+.hr-legend b {margin-left:auto}
+.hr-legend i {width:.65rem;height:.65rem;border-radius:50%;background:#a8b2b0}
+.hr-legend[data-status=complete] i {background:#11776e}
+.hr-legend[data-status=incomplete] i {background:#d09427}
+.hr-task-count {font-size:2rem;margin:.5rem 0}
+.hr-overview-grid progress {display:block;width:100%;height:.6rem;accent-color:#11776e;margin:.65rem 0}
