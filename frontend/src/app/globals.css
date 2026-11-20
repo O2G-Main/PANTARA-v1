@@ -1305,3 +1305,7 @@ html:active-view-transition-type(leave-login)::view-transition-old(login-visual)
 .hr-overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
 .hr-summary-link { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--border); }
 .hr-summary-link:hover { text-decoration: underline; }
+.hr-options { min-width: var(--reference-width); max-height: 15rem; overflow-y: auto; border: 1px solid var(--border); background: var(--surface, white); border-radius: .75rem; padding: .35rem; box-shadow: 0 .5rem 1.25rem #0001; }
+.hr-options [data-part=item], .hr-options p { padding: .55rem .75rem; }
+.hr-options small { display: block; }
+.hr-options [data-highlighted] { background: var(--accent-soft, #deefeb); border-radius: .5rem; }
