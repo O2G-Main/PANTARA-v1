@@ -40,7 +40,13 @@ export function AsyncSelect<T>({ fetcher, getOptionValue, renderOption, value, o
 
   return <div>
     <span className="field-label">{label}</span>
-    <details className="hr-select">
+    <details className="hr-select" onKeyDown={event => {
+      if (event.key === "Escape" && event.currentTarget.open) {
+        event.stopPropagation();
+        event.currentTarget.open = false;
+        event.currentTarget.querySelector("summary")?.focus();
+      }
+    }}>
       <summary className="hr-select-trigger">{value.length ? `${value.length} anggota dipilih` : "Pilih anggota"}<Icon icon={ChevronDown} size={18} /></summary>
       <div className="hr-select-panel">
     <label className="field" htmlFor={id}><span className="sr-only">{label}</span>
