@@ -1301,3 +1301,7 @@ html:active-view-transition-type(leave-login)::view-transition-old(login-visual)
 .hr-import-guide > svg { flex: 0 0 auto; color: var(--color-primary); margin-top: 2px; }
 .hr-import-guide p { margin: 4px 0 6px; font-size: 12px; }
 .hr-import-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+
+.hr-overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+.hr-summary-link { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--border); }
+.hr-summary-link:hover { text-decoration: underline; }

@@ -1,5 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import { gaps, missing } from "@/lib/hr/overview";
+import { updateQuery } from "@/lib/hr/query";
 import { useState } from "react";
 import { FileSpreadsheet, Plus, Search, Upload } from "lucide-react";
 import { PageHeading, Person } from "@/components/app/parts";
@@ -9,10 +12,14 @@ import type { Member } from "@/lib/demo/types";
 
 export default function HrMembers() {
   const { members, hrSettings, dispatch } = useDemo();
-  const [query, setQuery] = useState("");
+  const params = useSearchParams();
+  const gap = params.get("gap") ?? "";
+  const query = params.get("q") ?? "";
+  const setQuery = (q: string) => updateQuery({ q });
   const [editing, setEditing] = useState<Member | null>(null);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("semua");
+  const filter = params.get("jenis") || "semua";
+  const setFilter = (jenis: string) => updateQuery({ jenis });
   const [importOpen, setImportOpen] = useState(false);
   const [csv, setCsv] = useState("");
   const [fileName, setFileName] = useState("");
@@ -20,7 +27,7 @@ export default function HrMembers() {
   const [message, setMessage] = useState("");
   const shown = members.filter((member) => {
     const matches = [member.name, member.role, member.team, member.division].join(" ").toLowerCase().includes(query.toLowerCase());
-    return matches && (filter === "semua" || (member.employmentType ?? "karyawan") === filter);
+    return missing(member, gap) && matches && (filter === "semua" || (member.employmentType ?? "karyawan") === filter);
   });
 
   function save(event: React.FormEvent<HTMLFormElement>) {
@@ -97,6 +104,7 @@ export default function HrMembers() {
 
   return <div className="page-enter">
     <PageHeading title="Anggota" subtitle="Kelola profil kerja dan data anggota organisasi." actions={<><button className="button" onClick={() => { setError(""); setImportOpen(true); }}>Impor anggota</button><button className="button primary" onClick={add}><Icon icon={Plus} />Tambah anggota</button></>} />
+    {Object.hasOwn(gaps, gap) && <p>{gaps[gap as keyof typeof gaps]} · <button className="inline-link" onClick={() => updateQuery({ gap: "" })}>Hapus filter</button></p>}
     {message && <p role="status">{message}</p>}
     <section className="card">
       <div className="toolbar">

@@ -162,5 +162,6 @@ export interface HrRequest {
   title: string;
   description: string;
   createdAt: string;
+  handled?: boolean;
   read: boolean;
 }

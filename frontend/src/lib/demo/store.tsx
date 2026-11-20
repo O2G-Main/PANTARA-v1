@@ -53,6 +53,7 @@ type Action =
   | { type: "setStatus"; id: string; status: TaskStatus; reason?: string }
   | { type: "sendHrRequest"; request: HrRequest }
   | { type: "requestTaskChange"; id: string; memberId: string; reason: string; request: HrRequest }
+  | { type: "handleHrRequest"; id: string }
   | { type: "readHrRequest"; id: string }
   | { type: "performanceConfig"; config: PerformanceConfig }
   | { type: "savePerformanceReview"; review: PerformanceReview }
@@ -145,6 +146,8 @@ function reducer(s: DemoState, a: Action): DemoState {
       return { ...mapTask(s, a.id, (task) => ({ ...task, changeRequest: { memberId: a.memberId, reason: a.reason, status: "pending" } })), hrRequests: [a.request, ...(s.hrRequests ?? [])] };
     case "sendHrRequest":
       return { ...s, hrRequests: [a.request, ...(s.hrRequests ?? [])] };
+    case "handleHrRequest":
+      return { ...s, hrRequests: (s.hrRequests ?? []).map(request => request.id === a.id ? { ...request, read: true, handled: true } : request) };
     case "readHrRequest":
       return { ...s, hrRequests: (s.hrRequests ?? []).map((request) => request.id === a.id ? { ...request, read: true } : request) };
     case "performanceConfig":
