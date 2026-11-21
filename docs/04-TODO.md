@@ -39,7 +39,7 @@
 | T26 | Deploy preview + video cadangan + latihan demo | — | Must | ⬜ | Deploy butuh izin user |
 | D1 | Paket frontend-only Dokploy + audit kebutuhan backend | — | Must | ✅ | Dockerfile + allowlist context + standalone + `/health`; 90 test, lint, typecheck, knip, build native/Linux lulus; container healthy non-root; alur Chrome TGS-0173 ke Bima (+3 jam), 0 API call/error, 375/768/1440 tanpa overflow. Panduan `09-DEPLOY-DOKPLOY.md`; belum commit/push/deploy VPS |
 | T27 | Pengingat "data belum lengkap" satu klik (F17) | — | Could | ✅ | Ingatkan lengkapi data di profil anggota, 16 Okt |
-| T28 | Pintasan keyboard alur inti (F20) | — | Could | ⬜ | A12 |
+| T28 | Pintasan keyboard alur inti (F20) | AI | Could | ✅ | `1/2/3` pilih kandidat, `Enter` buka simulasi (`candidates.tsx`); diuji browser |
 
 ### M1-M5 — MVP (setelah lomba)
 | ID | Task | Pemilik | Prioritas | Status | Bukti verifikasi / Catatan |
@@ -67,6 +67,33 @@
 | R2 | Uji kegunaan 3-5 PM | — | Must | ⬜ | — |
 | R3 | Pilot 1 tim + ukur H1-H5 | — | Must | ⬜ | — |
 
+### CF — Corporate-First: Manajer & Anggota Tim (docs/CORPORATE-FIRST.md)
+| ID | Task | Pemilik | Prioritas | Status | Bukti verifikasi / Catatan |
+|---|---|---|---|---|---|
+| CF1 | Anggota: tolak penugasan diganti minta tambahan waktu (karyawan); freelancer tetap boleh menolak | AI | Must | 🟡 | FE selesai (mock); endpoint di docs/ENDPOINTS-CORPORATE-FIRST.md §2 |
+| CF2 | Tenggat tanggal + jam; tombol tambahan waktu muncul ≤ 2 jam sebelum tenggat | AI | Must | 🟡 | `canRequestExtraTime` + test; endpoint §2-3 |
+| CF3 | Manajer: tinjau permintaan tambahan waktu (setuju = jam estimasi bertambah, tenggat tetap) | AI | Must | 🟡 | `decideExtraTime` + test; endpoint §3 |
+| CF4 | Manajer: impor tugas CSV termasuk pekerjaan eksternal (ikut beban) | AI | Must | 🟡 | `import-tasks.ts` + test; endpoint §3 |
+| CF5 | Manajer: kapasitas cadangan (prioritas tinggi boleh memakai) | AI | Must | 🟡 | `reserveRatio` di `rankCandidates` + test; endpoint §3 |
+| CF6 | Manajer: catatan hasil teks per tugas selesai (tanpa skor) | AI | Should | 🟡 | FE selesai; endpoint §3 |
+| CF7 | Anggota: riwayat kerja sendiri; field jenis hubungan kerja | AI | Should | 🟡 | FE selesai; endpoint §1-2 |
+| CF8 | Batas akses manajer per tim | — | Should | ⬜ | Ditunda ke fase Admin/HR |
+| CF9 | Impor tugas: seret/unggah CSV, unduh template, isi manual | AI | Must | 🟡 | FE selesai |
+| CF10 | Anggota: ketersediaan hanya baca + pengajuan cuti (rentang, jenis, alasan wajib), disetujui manajer & HR paralel | AI | Must | 🟡 | `lib/engine/leave.ts` + test; persetujuan HR hanya didokumentasikan (endpoint §4) |
+| CF11 | Ketersediaan & batas mingguan hanya HR: hapus ubah ketersediaan dari manajer | AI | Must | 🟡 | Kapasitas & profil anggota; endpoint §3-4 |
+
+### UI — Penyelarasan popup dropdown
+| ID | Task | Pemilik | Prioritas | Status | Bukti verifikasi / Catatan |
+|---|---|---|---|---|---|
+| UI1 | Lanjutkan perbaikan popup dropdown sesuai lingkungan PANTARA | AI | Must | 🟩 | Picker terang dengan border/radius/shadow aplikasi, teks mengikuti field, opsi aktif teal, fokus keyboard terlihat, opsi disabled, scroll internal; diuji Chromium dev + production mock 375/768/1440, OS gelap, reduced-motion/transparency, kalender, dan filter 18 opsi. Test 123/123, lint/typecheck/knip/build lulus; build memberi peringatan keamanan Next.js terpasang 16.4.2 (manifest 16.4.6). Browser tanpa base-select tetap memakai fallback native, belum diuji langsung. |
+
+### HR dan penilaian (frontend, akun hardcode `hr@pantara.id`, hanya mode mock)
+| ID | Task | Pemilik | Prioritas | Status | Bukti verifikasi / Catatan |
+|---|---|---|---|---|---|
+| HR1 | Dasbor HR, anggota, tim & divisi, pengaturan jam kerja/cadangan, inbox pengajuan | AI | Should | 🟡 | `/hr`, `/hr/anggota`, `/hr/tim`, `/hr/pengaturan`, `/hr/inbox`; kontrak di ENDPOINTS-CORPORATE-FIRST §4 |
+| HR2 | Riwayat & performa per periode, penilaian manajer (`/penilaian`), pengajuan ke HR (`/pengajuan-hr`) | AI | Should | 🟡 | `lib/hr/`, test `performance.test.ts`; skor performa tidak masuk rekomendasi |
+| HR3 | Persetujuan cuti sisi HR di `/hr/inbox` | AI | Should | 🟡 | Memakai `decideLeave(..., "hr", ...)`; endpoint §4 |
+
 ## Alur Inti Check
 | Langkah | Status | Dicek |
 |---|---|---|
@@ -83,7 +110,7 @@
 | # | Halaman | Prioritas | Status | Catatan |
 |---|---|---|---|---|
 | P1 | Landing | Must | ✅ | 12 Nov: dirombak jadi cerita scroll per adegan (gaya otsuka-air.jp tanpa 3D): Beranda, Tentang, Cara kerja, Prinsip, Tujuan + footer; kartu = tangkapan asli aplikasi |
-| P2 | Harga | Should | ⬜ | — |
+| P2 | Harga | Should | ✅ | Halaman ringkas; isi paket menunggu rancangan bisnis |
 | P3 | Kebijakan privasi | Should | ✅ | Mockup M0 dengan data contoh |
 | P4 | Syarat layanan | Could | ✅ | Draf syarat, perlu ditinjau ahli hukum, 16 Okt |
 | P5 | Masuk | Must | ✅ | Mockup M0 dengan data contoh |
@@ -131,6 +158,7 @@
 ## Log
 | Tanggal | Ringkasan |
 |---|---|
+| 20 Nov 2026 | Penyelarasan popup dropdown bersama (`globals.css`), tanpa dependency atau perubahan alur: border/radius/shadow memakai token aplikasi; opsi aktif teal; teks field/opsi konsisten, 16px & target ≥44px di bawah 1200px; daftar panjang punya scroll internal. Regresi browser dev dan production mock pada 375/768/1440, keyboard ArrowDown/Enter/Escape, disabled, OS gelap, reduced-motion/transparency dan kalender lulus. Kontras teks aktif 4,86:1, normal 18,42:1; screenshot diuji warna piksel dan DOM karena layanan vision mengembalikan content-blocked. Alur inti production memakai tanggal seed 29 Sep 2026: TGS-0175 dibuat → DNA dikoreksi → Bima #1 → simulasi → Tetapkan → 16 menjadi 19/32 jam di Dashboard, Tim, Kapasitas. `npm run test` 123/123 (16 file), `npm run lint`, `npx tsc --noEmit`, `npx knip`, build API dan mock lulus setelah retry peringatan keamanan. Catatan: Next.js terpasang 16.4.2 tidak sesuai manifest 16.4.6; dependency tidak diubah. Safari/Firefox native belum diuji langsung. |
 | 2026-10-16 | TODO dibuat (setup-project-00) |
 | 2026-10-16 | Setup frontend: T1, T2 selesai; T15 sebagian |
 | 2026-10-16 | Shell diganti port persis K-DASP atas permintaan user; shadcn, sidebar-21st, framer-motion dilepas |
@@ -182,3 +210,8 @@
 | 2026-11-13 | Revisi landing 2 (permintaan user): Prinsip dipecah 4 langkah (kartu sorotan masuk sekali saat mulai terlihat, lalu 3 prinsip muncul satu per satu dan tetap tampil, jalur 400vh); Tujuan dibuat ulang meniru bagian ON otsuka-air.jp: tagline serif tengah atas, label besar "Tujuan" + 4 tujuan di kiri (aktif berwarna teal, berganti seiring scroll), kolase 5 kartu aplikasi menurun diagonal dengan parallax tipis & kartu terkait disorot (`landing-goals.tsx`, footer dipisah ke `landing-closing.tsx`). tsc, lint, 98 test, knip, build hijau; 1440 & 390 tanpa scroll horizontal |
 | 2026-11-13 | Font judul landing & `/masuk` diganti dari Instrument Serif ke Familjen Grotesk 700 (pilihan user, Google Fonts via `next/font`, variabel `--font-familjen`); aksen tanpa miring, hanya warna teal; ukuran & tracking judul disesuaikan, kurung hero jadi outline, kolom Prinsip disejajarkan, judul Prinsip & kutipan login dipatah manual. Isi tetap Onest, aplikasi tidak berubah. Coolvetica/Attena/Franklin Gothic/Baskerville Old Face/Haettenschweiler ditolak karena butuh lisensi webfont berbayar |
 | 2026-11-13 | Web dibuat seolah berjalan penuh (permintaan user): semua teks & fungsi demo/mockup/data contoh dihapus (tombol Demo, petunjuk akun, banner karyawan demo, Reset data contoh, badge simulasi, CTA landing jadi "Buat ruang kerja"), nama Arunika Digital dihapus dari UI. Masuk tetap statis tapi kini sesi sungguhan di browser (`src/lib/session.ts` + test): akun `krisna@pantara.id` (manajer) dan `bima@pantara.id` (karyawan), sandi tetap; "Ingat saya" = localStorage, selain itu sessionStorage; shell aplikasi menolak tanpa sesi (ke /masuk), karyawan hanya menu Saya + akun (lainnya ke /403), manajer tidak ke /saya (`canAccess` + test); profil, notifikasi, dan data /saya ikut akun; membuka /masuk = keluar. Email seed jadi @pantara.id. Animasi: kartu panel masuk jatuh berputar lalu melayang + ikut cursor (`login-cards.tsx`, hook `use-pointer-drift.ts` dipakai bersama hero); transisi halaman View Transitions bawaan React/Next (`transitionTypes` to-login/auth-in/leave-login, tanpa dependency); loader pembuka logo Pantara sekali per sesi tab (`boot-loader.tsx`, CSS murni, mati saat reduced-motion). Alur inti lulus 63,8% ke 64,9% |
+| 2026-11-20 | Corporate-First sisi Manajer & Anggota (CF1-CF7, frontend saja): karyawan tidak lagi menolak penugasan, diganti "Minta tambahan waktu" (muncul ≤ 2 jam sebelum tenggat; tenggat kini tanggal + jam WIB, default 17:00); freelancer (field `employment`) tetap bisa menolak; manajer menyetujui/menolak tambahan waktu di detail tugas + notifikasi; impor tugas CSV dari /tugas (modal, termasuk pekerjaan eksternal yang langsung masuk beban); kapasitas cadangan di /kapasitas (dipakai `rankCandidates`, prioritas tinggi bebas); catatan hasil teks di tugas selesai (tanpa skor, tidak masuk rekomendasi); riwayat kerja di /saya. Mode api: aksi nonaktif "Menunggu backend"; kebutuhan endpoint di docs/ENDPOINTS-CORPORATE-FIRST.md. tsc, lint, 119 test, knip, build hijau |
+| 2026-11-20 | Revisi Manajer & Anggota (CF9-CF11): modal Impor tugas jadi tab Unggah berkas (zona seret/klik .csv) dan Isi manual, plus kotak Unduh template; kartu Kapasitas cadangan tidak lagi menempel kartu bawah (`card spaced`); /saya/ketersediaan jadi hanya baca + form Pengajuan cuti dan riwayatnya; manajer menyetujui cuti di /kapasitas, cuti berlaku setelah manajer dan HR setuju (paralel); tombol Ubah ketersediaan manajer dan isian batas mingguan di Ubah profil dihapus (diatur HR); `api.self.updateAvailability` dan `api.members.saveAvailability` dihapus (tanpa pemanggil). Perbaikan DatePicker: kalender dibuka di bulan `min` bila hari ini di luar batas. tsc, lint, 123 test, knip, build hijau |
+| 2026-11-20 | Pengajuan cuti dipisah jadi halaman sendiri `/saya/cuti` (P42, menu sidebar anggota "Pengajuan cuti", disetujui user): form + riwayat pengajuan; /saya/ketersediaan kini hanya tampilan baca + tautan Ajukan cuti dan jumlah pengajuan menunggu. PRD Peta Halaman diperbarui (P25, P42) |
+| 2026-11-20 | Perbaikan UI: tombol "Ketersediaan & cuti" di box Kapasitas saya dihapus. Daftar pilihan (select) memakai gaya kaca resmi `select.select` di `/saya/cuti` (sebelumnya jatuh ke daftar bawaan browser: latar coklat, teks putih, radius 16px). Ditambah `:root { color-scheme: light }` agar daftar bawaan select/tanggal/scrollbar tidak ikut tema gelap OS saat aplikasi hanya punya tema terang |
+| 2026-11-21 | Bersih-bersih: hapus dead code (`ui/demo.tsx`, `ui/skeleton.tsx`, Avatar penyedia git, dependency `csstype` dan `tailwind-merge`); jam mode mock dikunci ke `NOW` seed (sebelumnya jam perangkat membuat tugas contoh kedaluwarsa dan kandidat kosong); picker bulan di `/penilaian` dan filter HR memakai gaya kaca; jam tenggat jadi select kaca (bukan input waktu bawaan); T28 pintasan keyboard kandidat; persetujuan cuti HR di inbox; ENDPOINTS-CORPORATE-FIRST ditulis ulang sesuai kode. Backend tidak disentuh. |

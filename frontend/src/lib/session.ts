@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { api, DATA_MODE, type AuthUser, type NotifyPrefs } from "@/lib/api";
 
-type Role = "admin" | "manajer" | "anggota" | "karyawan";
+type Role = "admin" | "manajer" | "anggota" | "karyawan" | "hr";
 
 export interface Account {
   id?: string;
@@ -13,7 +13,7 @@ export interface Account {
   title: string;
   initials: string;
   role: Role;
-  home: "/dashboard" | "/saya";
+  home: "/dashboard" | "/saya" | "/hr";
   memberId?: string;
   notifyPrefs?: NotifyPrefs;
 }
@@ -37,6 +37,14 @@ const MOCK_ACCOUNTS: Record<string, Account> = {
     role: "manajer",
     home: "/dashboard",
   },
+  "hr@pantara.id": {
+    email: "hr@pantara.id",
+    name: "Nadia Putri",
+    title: "Human Resources",
+    initials: "NP",
+    role: "hr",
+    home: "/hr",
+  },
   "bima@pantara.id": {
     email: "bima@pantara.id",
     name: "Bima Pradana",
@@ -52,6 +60,7 @@ const PASSWORDS: Record<string, string> = {
   "krisna@pantara.id": "pantara2026",
   "manajer@pantara.id": "pantara2026",
   "bima@pantara.id": "pantara2026",
+  "hr@pantara.id": "pantara2026",
 };
 
 const listeners = new Set<() => void>();

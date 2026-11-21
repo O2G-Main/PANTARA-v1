@@ -22,11 +22,16 @@ import {
 import { DEFAULT_SETTINGS, type EngineSettings } from "@/lib/engine/score";
 import { useSession } from "@/lib/session";
 import { COMPETENCIES, DECISIONS, MEMBERS, NOW, PROJECTS, TASKS } from "./seed";
-import type { Assignment, Competency, Decision, Member, Project, Task, TaskDna, TaskStatus } from "./types";
+import type { Assignment, Competency, Decision, Member, HrRequest, PerformanceConfig, PerformanceReview, Project, Task, TaskDna, TaskStatus } from "./types";
 
 export interface DemoState {
   tasks: Task[];
   members: Member[];
+  divisions?: string[];
+  hrRequests?: HrRequest[];
+  performanceConfig?: PerformanceConfig;
+  performanceReviews?: PerformanceReview[];
+  hrSettings?: { weeklyHours: number; reserveHours: number };
   projects: Project[];
   competencies: Competency[];
   decisions: Decision[];
@@ -46,7 +51,16 @@ type Action =
   | { type: "assign"; id: string; assignments: Assignment[]; decision: Decision }
   | { type: "reject"; decision: Decision }
   | { type: "setStatus"; id: string; status: TaskStatus; reason?: string }
+  | { type: "sendHrRequest"; request: HrRequest }
+  | { type: "requestTaskChange"; id: string; memberId: string; reason: string; request: HrRequest }
+  | { type: "handleHrRequest"; id: string }
+  | { type: "readHrRequest"; id: string }
+  | { type: "performanceConfig"; config: PerformanceConfig }
+  | { type: "savePerformanceReview"; review: PerformanceReview }
+  | { type: "setHrSettings"; weeklyHours: number; reserveHours: number }
   | { type: "upsertMember"; member: Member }
+  | { type: "placeMembers"; ids: string[]; division: string; team?: string }
+  | { type: "saveDivision"; name: string; previous?: string }
   | { type: "addCompetency"; competency: Competency }
   | { type: "upsertCompetency"; competency: Competency }
   | { type: "removeCompetency"; id: string }
@@ -120,6 +134,30 @@ function reducer(s: DemoState, a: Action): DemoState {
         assignments: a.status === "belum" ? [] : t.assignments,
         remainingHours: a.status === "selesai" ? 0 : t.remainingHours,
       }));
+    case "saveDivision": {
+      const divisions = (s.divisions ?? []).filter((name) => name !== a.previous);
+      return {
+        ...s,
+        divisions: [...divisions, a.name],
+        members: a.previous ? s.members.map((member) => member.division?.trim() === a.previous ? { ...member, division: a.name } : member) : s.members,
+      };
+    }
+    case "requestTaskChange":
+      return { ...mapTask(s, a.id, (task) => ({ ...task, changeRequest: { memberId: a.memberId, reason: a.reason, status: "pending" } })), hrRequests: [a.request, ...(s.hrRequests ?? [])] };
+    case "sendHrRequest":
+      return { ...s, hrRequests: [a.request, ...(s.hrRequests ?? [])] };
+    case "handleHrRequest":
+      return { ...s, hrRequests: (s.hrRequests ?? []).map(request => request.id === a.id ? { ...request, read: true, handled: true } : request) };
+    case "readHrRequest":
+      return { ...s, hrRequests: (s.hrRequests ?? []).map((request) => request.id === a.id ? { ...request, read: true } : request) };
+    case "performanceConfig":
+      return { ...s, performanceConfig: a.config };
+    case "savePerformanceReview":
+      return { ...s, performanceReviews: [...(s.performanceReviews ?? []), a.review] };
+    case "setHrSettings":
+      return { ...s, hrSettings: { weeklyHours: a.weeklyHours, reserveHours: a.reserveHours } };
+    case "placeMembers":
+      return { ...s, members: s.members.map((member) => a.ids.includes(member.id) ? { ...member, division: a.division, team: a.team ?? member.team } : member) };
     case "upsertMember":
       return {
         ...s,
@@ -179,14 +217,6 @@ const DemoContext = createContext<{
   meta: WorkspaceMeta;
 } | null>(null);
 
-function todayLocalISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export function DemoProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const [state, dispatch] = useReducer(reducer, INITIAL);
@@ -194,16 +224,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [period, setPeriodState] = useState<WorkPeriod | null>(null);
   const [periods, setPeriods] = useState<WorkPeriod[]>([]);
   const [serverNotifications, setServerNotifications] = useState<ServerNotice[]>([]);
+  // Mode mock memakai jam seed (NOW) supaya tenggat contoh tetap relevan; mode api memakai jam server (boot.today).
   const [today, setToday] = useState<string>(() => NOW.slice(0, 10));
   const [now, setNow] = useState<string>(() => NOW);
-
-  useEffect(() => {
-    if (DATA_MODE !== "mock") return;
-    queueMicrotask(() => {
-      setToday(todayLocalISO());
-      setNow(new Date().toISOString());
-    });
-  }, []);
   const [loading, setLoading] = useState<boolean>(DATA_MODE === "api");
   const [error, setError] = useState<string | null>(null);
   const selectedPeriodRef = useRef<string | undefined>(undefined);

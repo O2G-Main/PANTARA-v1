@@ -17,6 +17,8 @@ export interface EngineSettings {
   levelTolerance: number;
   /** Utilisasi sesudah ≥ ambang ini dihitung risiko beban. */
   overloadAt: number;
+  /** Porsi jam tersedia yang disisakan untuk tugas mendesak (0-0,3); tugas prioritas tinggi boleh memakainya. */
+  reserveRatio?: number;
 }
 
 export const DEFAULT_SETTINGS: EngineSettings = { preset: "seimbang", levelTolerance: 1, overloadAt: 0.9 };
@@ -127,20 +129,22 @@ export function rankCandidates(task: Task, members: Member[], tasks: Task[], set
   const w = effectiveWeights(settings.preset, dna?.complexity ?? 0);
   const overrun = overrunFactor(tasks).factor;
   const label = (id: string) => names[id] ?? id;
+  // Kapasitas cadangan hanya terbuka untuk tugas prioritas tinggi.
+  const open = 1 - (task.priority === "tinggi" ? 0 : settings.reserveRatio ?? 0);
   const candidates: Candidate[] = [];
   const filtered: Filtered[] = [];
 
   for (const member of members) {
     const failures: string[] = [];
-    const available = member.availableHours;
     const allocated = allocatedHours(member.id, tasks);
-    if (available === null) {
+    if (member.availableHours === null) {
       filtered.push({ member, failures: ["Ketersediaan periode ini belum diisi"] });
       continue;
     }
+    const available = member.availableHours * open;
     const window = workdays(today, task.dueDate);
     const leaveDays = window.filter(d => member.leaveDates.includes(d)).length;
-    const free = hoursUntil(member, task.dueDate, today) - committedUntil(member.id, task.dueDate, tasks, task.id);
+    const free = hoursUntil(member, task.dueDate, today) * open - committedUntil(member.id, task.dueDate, tasks, task.id);
     if (window.length > 0 && leaveDays === window.length) failures.push("Cuti di semua hari kerja sampai tenggat");
     else if (free < effort * 0.5) failures.push(`Jam kosong sampai tenggat ${Math.max(0, Math.round(free))} jam, kurang dari separuh estimasi (${effort / 2} jam)`);
     for (const req of requirements) {

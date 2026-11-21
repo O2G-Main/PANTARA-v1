@@ -22,13 +22,15 @@ type Props = { value: string; onChange: (iso: string) => void; min?: string; pla
 export function DatePicker({ value, onChange, min, placeholder = "Pilih tanggal", ...trigger }: Props) {
   const pop = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
-  const [cursor, setCursor] = useState(value || TODAY);
+  // Bulan awal: nilai terpilih, atau hari ini, digeser ke batas min bila hari ini sudah tidak bisa dipilih.
+  const start = () => value || (min && min > TODAY ? min : TODAY);
+  const [cursor, setCursor] = useState(start);
   const moved = useRef(false);
 
   const open = () => {
     const el = pop.current, anchor = btn.current;
     if (!el || !anchor) return;
-    setCursor(value || TODAY);
+    setCursor(start());
     el.showPopover();
     // Tinggi diukur setelah tampil. Prioritas: tepat di bawah kolom; bila tidak muat, halaman digulir agar kolom di tengah layar
     // (tetap di bawah kolom); bila masih tidak muat (layar sangat pendek), di atasnya atau dijepit di dalam layar.

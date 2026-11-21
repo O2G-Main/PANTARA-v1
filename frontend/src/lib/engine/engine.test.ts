@@ -184,3 +184,13 @@ describe("rankCandidates: waktu, keyakinan, dan ketidakpastian", () => {
   });
 });
 
+describe("rankCandidates: kapasitas cadangan", () => {
+  it("cadangan mengurangi jam yang bisa dipakai tugas biasa, tidak untuk prioritas tinggi", () => {
+    const bima = (t: Task, reserveRatio: number) => rankCandidates(t, MEMBERS, TASKS, { ...DEFAULT_SETTINGS, reserveRatio }, {}, "2026-09-29").candidates.find(c => c.member.id === "bima")!;
+    const normal = { ...authCorrected, priority: "normal" as const };
+    expect(bima(normal, 0.2).utilAfter).toBeGreaterThan(bima(normal, 0).utilAfter);
+    expect(bima(normal, 0.2).free).toBeLessThan(bima(normal, 0).free);
+    const urgent = { ...authCorrected, priority: "tinggi" as const };
+    expect(bima(urgent, 0.2).utilAfter).toBeCloseTo(bima(urgent, 0).utilAfter);
+  });
+});

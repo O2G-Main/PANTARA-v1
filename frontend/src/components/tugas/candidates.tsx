@@ -25,6 +25,23 @@ const FACTORS: { key: keyof Candidate["factors"]; label: string; minus?: boolean
   { key: "f", label: "Risiko konflik", minus: true },
 ];
 
+/** F20: 1/2/3 memilih kandidat, Enter membuka simulasi. Tidak aktif saat fokus di kontrol atau dialog terbuka. */
+function CandidateShortcuts({ hrefs, picked, onPick }: { hrefs: string[]; picked: number; onPick: (index: number) => void }) {
+  const router = useRouter();
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest("input, select, textarea, button, a, summary, dialog, [contenteditable]")) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= hrefs.length) onPick(n - 1);
+      else if (e.key === "Enter" && hrefs[picked]) router.push(hrefs[picked]);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hrefs, onPick, picked, router]);
+  return <p className="small muted">Pintasan: tekan <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> untuk memilih kandidat, <kbd>Enter</kbd> untuk simulasikan.</p>;
+}
+
 export function Candidates({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { taskById, members, tasks, settings, names, flowStart, decisions, today, loading, dispatch } = useDemo();
@@ -33,6 +50,7 @@ export function Candidates({ params }: { params: Promise<{ id: string }> }) {
   const [preset, setPreset] = useState<PresetId>(settings.preset);
   const [remote, setRemote] = useState<CandidatesPayload | null>(null);
   const [other, setOther] = useState(false);
+  const [picked, setPicked] = useState(0);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -261,9 +279,10 @@ export function Candidates({ params }: { params: Promise<{ id: string }> }) {
             title={top.length === 1 ? "Satu kandidat lolos syarat" : `${top.length} kandidat teratas`}
             subtitle={candidates.length > top.length ? `Dari ${candidates.length} karyawan yang lolos syarat wajib` : `Semua karyawan yang lolos syarat wajib (${filtered.length} tersaring)`}
           />
+          {!rejecting && !other && <CandidateShortcuts hrefs={top.map((c) => simHref(c.member.id))} picked={picked} onPick={setPicked} />}
           <div className="candidate-grid">
             {top.map((c, i) => (
-              <section key={c.member.id} className={`card candidate-card mesh mesh-${i}`}>
+              <section key={c.member.id} className={`card candidate-card mesh mesh-${i}`} aria-current={picked === i ? "true" : undefined}>
                 <div className="score-row">
                   <span className="rank-person">
                     <span className="rank">{i + 1}</span>

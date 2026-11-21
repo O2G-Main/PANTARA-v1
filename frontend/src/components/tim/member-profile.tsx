@@ -2,9 +2,8 @@
 
 import { Paged } from "@/components/ui/pager";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { BadgeCheck, BellRing, CalendarRange, CircleAlert, Heart, Pencil, ShieldCheck, ThumbsDown } from "lucide-react";
+import { BadgeCheck, BellRing, CircleAlert, Heart, Pencil, ShieldCheck, ThumbsDown } from "lucide-react";
 import { CapacityBar, DataBadge, EmptyState, PageHeading, SectionTitle, StatusBadge } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
 import { api, ApiError, DATA_MODE } from "@/lib/api";
@@ -18,10 +17,8 @@ const SOURCE = { klaim: "Klaim karyawan", verifikasi: "Diverifikasi manajer", ri
 
 export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const search = useSearchParams();
   const { memberById, tasks, names, period, loading, dispatch } = useDemo();
   const member = memberById(id);
-  const [editingAvail, setEditingAvail] = useState(search.get("lengkapi") === "1");
   const [editingProfile, setEditingProfile] = useState(false);
   const [reminded, setReminded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -101,30 +98,14 @@ export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
     setReminded(true);
   };
 
-  const saveAvailability = async (updated: Member) => {
+  const saveProfile = async (name: string, role: string, email: string) => {
     if (DATA_MODE === "api") {
-      const res = await api.members.saveAvailability(member.id, {
-        periodId: period?.id,
-        availableHours: updated.availableHours,
-        weeklyLimit: updated.weeklyLimit,
-        leaveDates: updated.leaveDates,
-      });
-      dispatch({ type: "upsertMember", member: res.member });
-      setEditingAvail(false);
-      return;
-    }
-    dispatch({ type: "upsertMember", member: updated });
-    setEditingAvail(false);
-  };
-
-  const saveProfile = async (name: string, role: string, email: string, weeklyLimit: number) => {
-    if (DATA_MODE === "api") {
-      const res = await api.members.update(member.id, { name, role, email, weeklyLimit });
+      const res = await api.members.update(member.id, { name, role, email, weeklyLimit: member.weeklyLimit });
       dispatch({ type: "upsertMember", member: res.member });
       setEditingProfile(false);
       return;
     }
-    dispatch({ type: "upsertMember", member: { ...member, name, role, email, weeklyLimit } });
+    dispatch({ type: "upsertMember", member: { ...member, name, role, email } });
     setEditingProfile(false);
   };
 
@@ -132,7 +113,7 @@ export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
     <div className="page-enter">
       <PageHeading
         title={member.name}
-        subtitle={`${member.role} · ${member.email}`}
+        subtitle={`${member.role}${member.employmentType === "freelancer" ? " · freelancer" : ""} · ${member.email}`}
         actions={
           <>
             {member.availableHours === null && (
@@ -144,10 +125,6 @@ export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
             <button className="button secondary" onClick={() => setEditingProfile(true)}>
               <Icon icon={Pencil} size={16} />
               Ubah profil
-            </button>
-            <button className="button primary" onClick={() => setEditingAvail(true)}>
-              <Icon icon={CalendarRange} size={16} />
-              Ubah ketersediaan
             </button>
           </>
         }
@@ -166,7 +143,7 @@ export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
           <Icon icon={CircleAlert} />
           <span>
             <strong>Ketersediaan periode ini belum diisi</strong>
-            <span>{member.name.split(" ")[0]} belum ikut rekomendasi sampai data kapasitas lengkap.</span>
+            <span>{member.name.split(" ")[0]} belum ikut rekomendasi sampai HR mengisi jam tersedia.</span>
           </span>
         </div>
       )}
@@ -307,88 +284,8 @@ export function MemberProfile({ params }: { params: Promise<{ id: string }> }) {
           </section>
         </div>
       </div>
-      {editingAvail && <AvailabilityModal member={member} onClose={() => setEditingAvail(false)} onSave={saveAvailability} />}
       {editingProfile && <EditMemberModal member={member} onClose={() => setEditingProfile(false)} onSave={saveProfile} />}
     </div>
-  );
-}
-
-export function AvailabilityModal({
-  member,
-  onClose,
-  onSave,
-}: {
-  member: Member;
-  onClose: () => void;
-  onSave: (m: Member) => Promise<void> | void;
-}) {
-  const { period } = useDemo();
-  const [available, setAvailable] = useState(String(member.availableHours ?? 32));
-  const [limit, setLimit] = useState(String(member.weeklyLimit));
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    const a = Number(available),
-      l = Number(limit);
-    if (!Number.isFinite(a) || a < 0 || a > 60) return setError("Jam tersedia antara 0 dan 60.");
-    if (!Number.isFinite(l) || l < a) return setError("Batas kerja tidak boleh lebih kecil dari jam tersedia.");
-    setBusy(true);
-    try {
-      await onSave({ ...member, availableHours: a, weeklyLimit: l });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal menyimpan ketersediaan.");
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal title={`Ketersediaan ${member.name.split(" ")[0]}`} onClose={onClose}>
-      <form onSubmit={(e) => void submit(e)} noValidate>
-        <p className="dialog-summary">Periode {period?.label ?? PERIOD.label}. Karyawan biasanya mengisi ini sendiri; manajer mengisi hanya atas persetujuannya.</p>
-        <div className="form-grid">
-          <label className="field">
-            <span className="field-label">Jam tersedia</span>
-            <input
-              className="input"
-              type="number"
-              value={available}
-              onChange={(e) => {
-                setAvailable(e.target.value);
-                setError("");
-              }}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Batas kerja mingguan</span>
-            <input
-              className="input"
-              type="number"
-              value={limit}
-              onChange={(e) => {
-                setLimit(e.target.value);
-                setError("");
-              }}
-            />
-          </label>
-        </div>
-        {error && (
-          <p className="field-error spaced" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="dialog-actions">
-          <button type="button" className="button secondary" onClick={onClose}>
-            Batal
-          </button>
-          <button type="submit" className="button primary" disabled={busy}>
-            {busy ? "Menyimpan..." : "Simpan"}
-          </button>
-        </div>
-      </form>
-    </Modal>
   );
 }
 
@@ -399,12 +296,11 @@ function EditMemberModal({
 }: {
   member: Member;
   onClose: () => void;
-  onSave: (name: string, role: string, email: string, weeklyLimit: number) => Promise<void> | void;
+  onSave: (name: string, role: string, email: string) => Promise<void> | void;
 }) {
   const [name, setName] = useState(member.name);
   const [role, setRole] = useState(member.role);
   const [email, setEmail] = useState(member.email);
-  const [weeklyLimit, setWeeklyLimit] = useState(String(member.weeklyLimit));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -413,11 +309,9 @@ function EditMemberModal({
     if (busy) return;
     if (name.trim().length < 2) return setError("Nama wajib diisi.");
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Email belum valid.");
-    const l = Number(weeklyLimit);
-    if (!Number.isFinite(l) || l < 4 || l > 60) return setError("Batas mingguan harus antara 4 dan 60 jam.");
     setBusy(true);
     try {
-      await onSave(name.trim(), role.trim(), email.trim().toLowerCase(), l);
+      await onSave(name.trim(), role.trim(), email.trim().toLowerCase());
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal menyimpan profil karyawan.");
       setBusy(false);
@@ -436,13 +330,9 @@ function EditMemberModal({
             <span className="field-label">Email</span>
             <input className="input" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} />
           </label>
-          <label className="field">
+          <label className="field full">
             <span className="field-label">Peran</span>
             <input className="input" value={role} onChange={(e) => { setRole(e.target.value); setError(""); }} />
-          </label>
-          <label className="field">
-            <span className="field-label">Batas mingguan</span>
-            <input className="input" type="number" value={weeklyLimit} onChange={(e) => { setWeeklyLimit(e.target.value); setError(""); }} />
           </label>
         </div>
         {error && <p className="field-error spaced" role="alert">{error}</p>}

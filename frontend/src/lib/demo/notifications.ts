@@ -17,6 +17,7 @@ export function replanMessage(r: ReplanRisk): string {
 
 /** Notifikasi sesuai peran akun yang masuk. */
 export function noticesFor(s: DemoState, account: Account): Notice[] {
+  if (account.role === "hr") return (s.hrRequests ?? []).filter((request) => !request.read).map((request) => ({ id: `hr-request-${request.id}`, title: request.title, subtitle: `Pengajuan dari ${request.sender}`, href: "/hr/inbox" }));
   return account.memberId ? memberNotices(s, account.memberId) : managerNotices(s);
 }
 
@@ -24,7 +25,7 @@ export function noticesFor(s: DemoState, account: Account): Notice[] {
 function memberNotices(s: DemoState, memberId: string): Notice[] {
   return s.tasks
     .filter(t => t.status === "menunggu" && t.assignments.some(a => a.memberId === memberId))
-    .map(t => ({ id: `masuk-${t.id}`, title: `Penugasan baru: "${t.title}"`, subtitle: `Tenggat ${shortDate(t.dueDate)} · terima atau tolak dengan alasan`, href: `/saya/tugas/${t.id}` }));
+    .map(t => ({ id: `masuk-${t.id}`, title: `Penugasan baru: "${t.title}"`, subtitle: `Tenggat ${shortDate(t.dueDate)} · buka untuk menjawab`, href: `/saya/tugas/${t.id}` }));
 }
 
 /** Notifikasi manajer diturunkan dari data (bukan daftar statis). */
@@ -37,6 +38,10 @@ function managerNotices(s: DemoState): Notice[] {
   }
   for (const t of s.tasks.filter(t => t.responseReason && t.status === "belum")) {
     notices.push({ id: `tolak-${t.id}`, title: `Penugasan "${t.title}" ditolak`, subtitle: t.responseReason as string, href: `/tugas/${t.id}` });
+  }
+  for (const t of s.tasks.filter(t => t.extraTime?.status === "menunggu")) {
+    const name = s.members.find(m => m.id === t.extraTime?.memberId)?.name ?? "Anggota";
+    notices.push({ id: `waktu-${t.id}`, title: `${name} minta tambahan ${t.extraTime?.hours} jam`, subtitle: `"${t.title}" · ${t.extraTime?.reason}`, href: `/tugas/${t.id}` });
   }
   for (const r of replanRisks(s.tasks, s.members, NOW.slice(0, 10))) {
     notices.push({ id: `ulang-${r.task.id}-${r.member.id}`, title: `Perlu jadwal ulang: "${r.task.title}"`, subtitle: replanMessage(r), href: `/tugas/${r.task.id}` });

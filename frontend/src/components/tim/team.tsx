@@ -6,10 +6,10 @@ import { useState } from "react";
 import { CircleCheck, ShieldAlert, UserPlus, Users, UserCheck, Search, SearchX } from "lucide-react";
 import { CapacityBar, DataBadge, EmptyState, MetricCard, PageHeading, Person } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
-import { api, ApiError, DATA_MODE } from "@/lib/api";
+import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
-import type { Member } from "@/lib/demo/types";
+import type { Employment, Member } from "@/lib/demo/types";
 import { allocatedHours, clashingDeadline } from "@/lib/engine/score";
 import { shortDate } from "@/lib/format";
 
@@ -133,7 +133,7 @@ export function Team() {
                               <Person member={m} sub={m.competencies.slice(0, 3).map((c) => names[c.id] ?? c.id).join(", ")} />
                             </Link>
                           </td>
-                          <td data-label="Peran">{m.role}</td>
+                          <td data-label="Peran">{m.role}{m.employmentType === "freelancer" && <span className="table-sub">Freelancer</span>}</td>
                           <td data-label="Kapasitas">
                             <CapacityBar allocated={allocatedHours(m.id, tasks)} available={m.availableHours} />
                           </td>
@@ -161,8 +161,8 @@ export function Team() {
                           </td>
                           <td className="numeric">
                             {m.availableHours === null ? (
-                              <Link className="row-link accent" href={`/tim/${m.id}?lengkapi=1`}>
-                                Lengkapi data
+                              <Link className="row-link accent" href={`/tim/${m.id}`}>
+                                Lihat profil
                               </Link>
                             ) : (
                               <Link className="row-link" href={`/tim/${m.id}`}>
@@ -220,6 +220,7 @@ function AddMember({ onClose, onSave }: { onClose: () => void; onSave: (m: Membe
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Pengembang perangkat lunak");
+  const [employment, setEmployment] = useState<Employment>("karyawan");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -242,6 +243,7 @@ function AddMember({ onClose, onSave }: { onClose: () => void; onSave: (m: Membe
         name: trimmed,
         initials,
         role,
+        employmentType: employment,
         email: email.trim().toLowerCase(),
         availableHours: null,
         leaveDates: [],
@@ -294,6 +296,14 @@ function AddMember({ onClose, onSave }: { onClose: () => void; onSave: (m: Membe
               <option>Desainer produk</option>
               <option>Penguji perangkat lunak / QA</option>
             </select>
+          </label>
+          <label className="field full">
+            <span className="field-label">Jenis hubungan kerja</span>
+            <select className="select" value={employment} disabled={AWAITING_BACKEND} onChange={(e) => setEmployment(e.target.value as Employment)}>
+              <option value="karyawan">Karyawan (minta tambahan waktu, tidak menolak tugas)</option>
+              <option value="freelancer">Freelancer (boleh menolak penugasan)</option>
+            </select>
+            {AWAITING_BACKEND && <span className="field-hint">{AWAITING_BACKEND_NOTE}</span>}
           </label>
         </div>
         {error && (

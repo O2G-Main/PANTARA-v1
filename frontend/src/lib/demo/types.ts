@@ -24,12 +24,18 @@ export interface Member {
   name: string;
   initials: string;
   role: string;
+  /** Jenis hubungan kerja; kosong = karyawan. Freelancer boleh menolak/minta perubahan penugasan, karyawan meminta tambahan waktu. */
+  employmentType?: Employment;
+  team?: string;
+  division?: string;
   email: string;
   /** Jam tersedia di periode aktif; null = belum diisi karyawan. */
   availableHours: number | null;
   leaveDates: string[];
   /** Batas kerja mingguan yang ditentukan karyawan (syarat wajib). */
   weeklyLimit: number;
+  workHoursOverride?: number;
+  reserveHoursOverride?: number;
   competencies: MemberCompetency[];
   /** Kompetensi yang disukai / dihindari (faktor preferensi di R). */
   prefers: string[];
@@ -39,6 +45,33 @@ export interface Member {
   /** Peran akses ruang kerja. */
   access: "admin" | "manajer" | "anggota";
   isActive?: boolean;
+  leaveRequests?: LeaveRequest[];
+}
+
+export type LeaveType = "tahunan" | "sakit" | "izin";
+export type Approval = "menunggu" | "disetujui" | "ditolak";
+
+/** Pengajuan cuti anggota. Manajer dan HR menyetujui paralel; berlaku bila keduanya setuju. */
+export interface LeaveRequest {
+  id: string;
+  start: string;
+  end: string;
+  type: LeaveType;
+  reason: string;
+  requestedAt: string;
+  manager: Approval;
+  hr: Approval;
+}
+
+export type Employment = "karyawan" | "freelancer";
+
+/** Permintaan tambahan jam estimasi dari anggota; tenggat tetap, manajer yang memutuskan. */
+interface ExtraTimeRequest {
+  memberId: string;
+  hours: number;
+  reason: string;
+  requestedAt: string;
+  status: "menunggu" | "disetujui" | "ditolak";
 }
 
 export interface Project {
@@ -82,6 +115,8 @@ export interface Task {
   title: string;
   description: string;
   dueDate: string;
+  /** Jam tenggat "HH:MM" WIB; kosong = 17:00. */
+  dueTime?: string;
   priority: Priority;
   status: TaskStatus;
   assignments: Assignment[];
@@ -92,8 +127,16 @@ export interface Task {
   /** Kompetensi yang dipakai tugas selesai (riwayat relevan). */
   competencyIds: string[];
   responseReason?: string;
+  changeRequest?: { memberId: string; reason: string; status: "pending" | "reviewed" };
   /** Jam aktual yang dicatat saat tugas ditandai selesai (satu angka, bukan time tracking); dasar kalibrasi estimasi. */
   actualHours?: number;
+  completedAt?: string;
+  qualityScore?: number;
+  /** Pekerjaan yang dikelola di luar PANTARA (nama sistem/klien); dicatat agar ikut menghitung beban. */
+  externalSource?: string;
+  extraTime?: ExtraTimeRequest;
+  /** Catatan hasil dari manajer (teks, tanpa skor, tidak dipakai rekomendasi). */
+  resultNote?: string;
 }
 
 export interface Decision {
@@ -119,4 +162,41 @@ export interface Weights {
   a: number;
   r: number;
   f: number;
+}
+
+
+interface PerformanceCriterion {
+  id: string;
+  name: string;
+  weight: number;
+  active: boolean;
+}
+
+export interface PerformanceConfig {
+  automaticWeight: number;
+  criteria: PerformanceCriterion[];
+}
+
+export interface PerformanceReview {
+  id: string;
+  memberId: string;
+  period: string;
+  note: string;
+  criteria: { id: string; name: string; weight: number; score: number }[];
+  automaticWeight: number;
+  automaticScore: number | null;
+  onTimeScore: number | null;
+  qualityScore: number | null;
+  author: string;
+}
+
+export interface HrRequest {
+  id: string;
+  sender: string;
+  senderRole: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  handled?: boolean;
+  read: boolean;
 }

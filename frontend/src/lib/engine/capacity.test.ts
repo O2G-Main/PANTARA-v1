@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Member, Task } from "@/lib/demo/types";
-import { committedUntil, hoursUntil, loadScore, overrunFactor, replanRisks, weeklyLoad, workdays } from "./capacity";
+import { canRequestExtraTime, committedUntil, deadlineAt, decideExtraTime, hoursUntil, loadScore, overrunFactor, replanRisks, weeklyLoad, workdays } from "./capacity";
 
 const member = (patch: Partial<Member> = {}): Member => ({
   id: "m", name: "Mira Lestari", initials: "ML", role: "Pengembang", email: "m@contoh.id",
@@ -110,5 +110,38 @@ describe("weeklyLoad", () => {
     expect(weeks.map(w => Math.round(w.hours * 10) / 10)).toEqual([4, 5, 0]);
     expect(weeks[0].capacity).toBeCloseTo(25.6);
     expect(weeks[1].capacity).toBe(32);
+  });
+});
+
+describe("tambahan waktu", () => {
+  const due = task({ dueDate: "2026-10-02", dueTime: "15:00" });
+
+  it("tenggat memakai jam WIB, default 17:00", () => {
+    expect(new Date(deadlineAt(due)).toISOString()).toBe("2026-10-02T08:00:00.000Z");
+    expect(new Date(deadlineAt(task({}))).toISOString()).toBe("2026-10-02T10:00:00.000Z");
+  });
+
+  it("tombol muncul hanya saat tenggat tinggal 2 jam atau kurang", () => {
+    expect(canRequestExtraTime(due, "2026-10-02T12:59:00+07:00")).toBe(false);
+    expect(canRequestExtraTime(due, "2026-10-02T13:00:00+07:00")).toBe(true);
+    expect(canRequestExtraTime(due, "2026-10-02T16:00:00+07:00")).toBe(true);
+    expect(canRequestExtraTime({ ...due, status: "menunggu" }, "2026-10-02T14:00:00+07:00")).toBe(false);
+  });
+
+  it("tidak bisa mengajukan lagi selama permintaan masih menunggu", () => {
+    const pending = { ...due, extraTime: { memberId: "m", hours: 2, reason: "x", requestedAt: "", status: "menunggu" as const } };
+    expect(canRequestExtraTime(pending, "2026-10-02T14:00:00+07:00")).toBe(false);
+  });
+
+  it("disetujui menambah sisa jam dan jam penugasan peminta, tenggat tetap", () => {
+    const pending = task({ assignments: [{ memberId: "m", hours: 8 }, { memberId: "x", hours: 4 }], extraTime: { memberId: "m", hours: 3, reason: "x", requestedAt: "", status: "menunggu" } });
+    const ok = decideExtraTime(pending, true);
+    expect(ok.remainingHours).toBe(9);
+    expect(ok.assignments).toEqual([{ memberId: "m", hours: 11 }, { memberId: "x", hours: 4 }]);
+    expect(ok.dueDate).toBe(pending.dueDate);
+    expect(ok.extraTime?.status).toBe("disetujui");
+    const no = decideExtraTime(pending, false);
+    expect([no.remainingHours, no.extraTime?.status]).toEqual([6, "ditolak"]);
+    expect(decideExtraTime(ok, false)).toBe(ok);
   });
 });

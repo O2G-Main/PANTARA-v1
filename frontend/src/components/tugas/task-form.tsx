@@ -6,7 +6,7 @@ import { useState } from "react";
 import { CircleAlert, Save, Sparkles } from "lucide-react";
 import { FlowSteps, PageHeading } from "@/components/app/parts";
 import { Icon } from "@/components/ui";
-import { api, ApiError, DATA_MODE } from "@/lib/api";
+import { api, ApiError, AWAITING_BACKEND, DATA_MODE } from "@/lib/api";
 import { mockDna } from "@/lib/demo/mock-dna";
 import { NOW } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
@@ -20,6 +20,8 @@ interface Errors {
   form?: string;
 }
 
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+
 export function TaskForm() {
   const { projects, tasks, period, today, dispatch } = useDemo();
   const router = useRouter();
@@ -29,6 +31,7 @@ export function TaskForm() {
     title: "",
     description: "",
     dueDate: "",
+    dueTime: "17:00",
     priority: "normal" as Priority,
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -88,6 +91,7 @@ export function TaskForm() {
       title: form.title.trim(),
       description: form.description.trim(),
       dueDate,
+      dueTime: form.dueTime,
       priority: form.priority,
       status: draft ? "draf" : "belum",
       assignments: [],
@@ -181,6 +185,13 @@ export function TaskForm() {
                 {errors.dueDate}
               </span>
             )}
+          </label>
+          <label className="field">
+            <span className="field-label">Jam tenggat (WIB)</span>
+            <select className="select" value={form.dueTime} disabled={AWAITING_BACKEND} onChange={(e) => set("dueTime", e.target.value)}>
+              {(TIME_OPTIONS.includes(form.dueTime) ? TIME_OPTIONS : [...TIME_OPTIONS, form.dueTime].sort()).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span className="field-hint">{AWAITING_BACKEND ? "Menunggu backend: tenggat memakai 17:00." : "Anggota bisa minta tambahan waktu 2 jam sebelum tenggat."}</span>
           </label>
           <fieldset className="field full">
             <legend className="field-label">Prioritas</legend>

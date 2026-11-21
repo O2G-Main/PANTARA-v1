@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  CalendarOff,
   CalendarRange,
   CircleUser,
   ClipboardCheck,
@@ -46,6 +47,14 @@ export interface PageInfo {
 
 const PAGE_MAP = {
   "/mulai": { id: "P9", label: "Siapkan ruang kerja", group: "Ruang kerja", icon: Rocket, description: "Mengisi periode, jam kerja, dan data karyawan lewat impor CSV." },
+  "/pengajuan-hr": { id: "HRQ", label: "Pengajuan ke HR", group: "Akun", icon: Inbox, description: "Kirim pengajuan kepada HR." },
+  "/hr/inbox": { id: "HRI", label: "Inbox", group: "HR", icon: Inbox, description: "Lihat pengajuan untuk HR." },
+  "/penilaian": { id: "PEN", label: "Penilaian anggota", group: "Analisis", icon: UserCheck, description: "Menilai anggota per periode." },
+  "/hr/pengaturan": { id: "HR5", label: "Pengaturan HR", group: "HR", icon: Settings, description: "Atur jam kerja dan kapasitas cadangan." },
+  "/hr/anggota": { id: "HR2", label: "Anggota", group: "HR", icon: Users, description: "Kelola profil anggota." },
+  "/hr/tim": { id: "HR3", label: "Tim & divisi", group: "HR", icon: Building2, description: "Lihat anggota menurut tim dan divisi." },
+  "/hr/riwayat": { id: "HR4", label: "Riwayat & performa", group: "HR", icon: History, description: "Tinjau riwayat pekerjaan anggota." },
+  "/hr": { id: "HR", label: "Dashboard HR", group: "Ruang kerja", icon: Users, description: "Meninjau data dan riwayat kerja karyawan." },
   "/dashboard": { id: "P10", label: "Dashboard", group: "Ruang kerja", icon: LayoutDashboard, description: "Melihat apa yang perlu diputuskan sekarang." },
   "/tugas": { id: "P11", label: "Tugas", group: "Ruang kerja", icon: ListTodo, description: "Mengelola daftar tugas, alokasi kerja karyawan, dan status penugasan." },
   "/tugas/baru": { id: "P12", label: "Buat tugas", group: "Tugas", icon: FilePlus2, description: "Memasukkan tugas baru: judul, deskripsi, tenggat, dan prioritas." },
@@ -65,8 +74,9 @@ const PAGE_MAP = {
   "/keputusan": { id: "P22", label: "Riwayat keputusan", group: "Analisis", icon: History, description: "Meninjau keputusan dan override untuk mengkalibrasi rekomendasi." },
   "/laporan": { id: "P23", label: "Laporan dampak", group: "Analisis", icon: BarChart3, description: "Mengukur dampak pilot: waktu keputusan, konflik terdeteksi, penerimaan, dan override." },
   "/saya": { id: "P24", label: "Beranda saya", group: "Karyawan", icon: Inbox, description: "Melihat penugasan baru, tugas berjalan, dan kapasitas sendiri." },
-  "/saya/ketersediaan": { id: "P25", label: "Ketersediaan saya", group: "Karyawan", icon: CalendarRange, description: "Mengisi jam tersedia dan cuti per periode." },
-  "/saya/tugas/[id]": { id: "P26", label: "Penugasan masuk", group: "Karyawan", icon: ClipboardCheck, description: "Menerima atau menolak penugasan dengan alasan." },
+  "/saya/ketersediaan": { id: "P25", label: "Ketersediaan saya", group: "Karyawan", icon: CalendarRange, description: "Melihat jam tersedia, batas mingguan, dan cuti terjadwal (diatur HR)." },
+  "/saya/cuti": { id: "P42", label: "Pengajuan cuti", group: "Karyawan", icon: CalendarOff, description: "Mengajukan cuti dan memantau persetujuan manajer dan HR." },
+  "/saya/tugas/[id]": { id: "P26", label: "Penugasan masuk", group: "Karyawan", icon: ClipboardCheck, description: "Menerima penugasan atau meminta tambahan waktu dengan alasan." },
   "/saya/profil": { id: "P27", label: "Profil kerja saya", group: "Karyawan", icon: UserRound, description: "Menjaga kompetensi, preferensi, dan batas kerja sendiri." },
   "/pengaturan": { id: "P28", label: "Pengaturan", group: "Sistem", icon: Settings, description: "Mengatur periode default, jam kerja, dan hari libur ruang kerja." },
   "/pengaturan/rekomendasi": { id: "P29", label: "Aturan rekomendasi", group: "Sistem", icon: SlidersHorizontal, description: "Memilih preset bobot dan syarat wajib kandidat." },
@@ -83,38 +93,41 @@ export const PAGES: Record<PageRoute, PageInfo> = PAGE_MAP;
 
 /** Menu sidebar admin (01-PRD §5b). */
 const ADMIN_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
+  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas", "/pengajuan-hr"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
-  { group: "Analisis", routes: ["/keputusan", "/laporan"] },
+  { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
   { group: "Sistem", routes: ["/pengaturan"] },
 ];
 
 /** Menu sidebar manajer operasional (tanpa pengaturan ruang kerja admin). */
 const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas"] },
+  { group: "Ruang kerja", routes: ["/dashboard", "/tugas", "/tim", "/kapasitas", "/pengajuan-hr"] },
   { group: "Perencanaan", routes: ["/proyek", "/tugas/massal"] },
-  { group: "Analisis", routes: ["/keputusan", "/laporan"] },
+  { group: "Analisis", routes: ["/keputusan", "/laporan", "/penilaian"] },
 ];
 
 /** Menu sidebar karyawan: hanya halaman miliknya sendiri. */
 export const EMPLOYEE_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil"] },
+  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/cuti", "/saya/profil", "/pengajuan-hr"] },
 ];
 
-export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan";
+export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan" | "hr";
 
-export function navigationForRole(role: AccessRole) {
+export function navigationForRole(role: AccessRole): { group: string; routes: PageRoute[] }[] {
+  if (role === "hr") return [{ group: "HR", routes: ["/hr", "/hr/anggota", "/hr/tim", "/hr/riwayat", "/hr/inbox", "/hr/pengaturan"] }];
   if (role === "anggota" || role === "karyawan") return EMPLOYEE_NAVIGATION;
   if (role === "admin") return ADMIN_NAVIGATION;
   return NAVIGATION;
 }
 
-const SHARED_ROUTES = ["/akun", "/notifikasi", "/bantuan", "/403"];
+const SHARED_ROUTES = ["/pengajuan-hr", "/akun", "/notifikasi", "/bantuan", "/403"];
 const ADMIN_ONLY_ROUTES = ["/pengaturan", "/mulai"];
 
 /** Hak akses per peran: anggota hanya /saya; manajer operasi; admin penuh kecuali /saya. */
 export function canAccess(role: AccessRole, pathname: string): boolean {
   if (SHARED_ROUTES.some(href => isActive(pathname, href))) return true;
+  if (role === "hr") return isActive(pathname, "/hr");
+  if (isActive(pathname, "/hr")) return false;
   if (role === "karyawan" || role === "anggota") return isActive(pathname, "/saya");
   if (isActive(pathname, "/saya")) return false;
   if (ADMIN_ONLY_ROUTES.some(href => isActive(pathname, href))) return role === "admin";

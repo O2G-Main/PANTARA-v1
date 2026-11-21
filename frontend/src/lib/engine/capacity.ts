@@ -55,6 +55,32 @@ export function loadScore(util: number): number {
   return Math.min(1, ((1 + LOAD_KNEE) * headroom) / (headroom + LOAD_KNEE));
 }
 
+/** Batas permintaan tambahan waktu: tombol muncul saat tenggat tinggal ≤ 2 jam. */
+const EXTRA_TIME_WINDOW_MS = 2 * 3_600_000;
+
+/** Waktu tenggat (ms) dari tanggal + jam WIB; jam kosong dianggap 17:00. */
+export function deadlineAt(task: Pick<Task, "dueDate" | "dueTime">): number {
+  return new Date(`${task.dueDate.slice(0, 10)}T${task.dueTime ?? "17:00"}:00+07:00`).getTime();
+}
+
+/** Anggota boleh minta tambahan waktu: tugas berjalan, belum ada permintaan menunggu, tenggat ≤ 2 jam lagi (atau lewat). */
+export function canRequestExtraTime(task: Task, now: string): boolean {
+  return task.status === "berjalan" && task.extraTime?.status !== "menunggu" && deadlineAt(task) - new Date(now).getTime() <= EXTRA_TIME_WINDOW_MS;
+}
+
+/** Keputusan manajer atas permintaan tambahan waktu. Disetujui: sisa jam dan jam penugasan peminta bertambah, tenggat tetap. */
+export function decideExtraTime(task: Task, approve: boolean): Task {
+  const req = task.extraTime;
+  if (!req || req.status !== "menunggu") return task;
+  if (!approve) return { ...task, extraTime: { ...req, status: "ditolak" } };
+  return {
+    ...task,
+    remainingHours: task.remainingHours + req.hours,
+    assignments: task.assignments.map(a => a.memberId === req.memberId ? { ...a, hours: a.hours + req.hours } : a),
+    extraTime: { ...req, status: "disetujui" },
+  };
+}
+
 /** Jam rencana tugas: total jam penugasan, atau estimasi Analisis kebutuhan bila belum ada penugasan. */
 export const plannedHours = (t: Task) => t.assignments.reduce((s, a) => s + a.hours, 0) || t.dna?.effortHours || 0;
 
