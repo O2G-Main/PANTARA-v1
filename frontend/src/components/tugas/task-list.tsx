@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Download, FileUp, Layers, Plus, Search, SearchX, ShieldAlert } from "lucide-react";
 import { EmptyState, PageHeading, Person, PriorityBadge, StatusBadge } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
-import { AWAITING_BACKEND, AWAITING_BACKEND_NOTE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { parseTaskCsv, TASK_CSV_HEADER, type ImportRow } from "@/lib/demo/import-tasks";
 import { useDemo } from "@/lib/demo/store";
 import type { Priority, TaskStatus } from "@/lib/demo/types";
@@ -92,6 +92,7 @@ function ImportTasks({ onClose }: { onClose: () => void }) {
   const [fileName, setFileName] = useState("");
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const valid = rows?.filter(r => r.task) ?? [];
 
@@ -108,13 +109,46 @@ function ImportTasks({ onClose }: { onClose: () => void }) {
     a.click();
     URL.revokeObjectURL(url);
   };
-  const check = () => {
+  const check = async () => {
+    if (busy) return;
     if (!csv.trim()) return setError(mode === "berkas" ? "Pilih atau seret berkas CSV dulu." : "Isi data CSV dulu.");
     if (!csv.trim().toLowerCase().startsWith("judul,")) return setError(`Baris pertama harus header: ${TASK_CSV_HEADER}`);
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        const res = await api.tasks.importCsv({ csv, dryRun: true });
+        setRows(res.rows);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal memeriksa data CSV.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setRows(parseTaskCsv(csv, {
       projects, members, tasks, today, now: now || new Date().toISOString(),
       nextId: Math.max(140, ...tasks.map(t => Number(t.id.slice(4)) || 0)) + 1,
     }));
+  };
+
+  const commitImport = async () => {
+    if (busy || !valid.length) return;
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        const res = await api.tasks.importCsv({ csv, dryRun: false });
+        res.rows.forEach((r) => r.task && dispatch({ type: "upsertTask", task: r.task }));
+        onClose();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal mengimpor tugas.");
+        setBusy(false);
+      }
+      return;
+    }
+    valid.forEach((r) => r.task && dispatch({ type: "createTask", task: r.task }));
+    onClose();
   };
 
   return <Modal title="Impor tugas" onClose={onClose}>
@@ -155,12 +189,11 @@ function ImportTasks({ onClose }: { onClose: () => void }) {
         {r.task && <Badge tone="ok">Siap</Badge>}
       </div>)}
     </div>}
-    {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
     <div className="dialog-actions">
       {rows === null
-        ? <><button type="button" className="button secondary" onClick={onClose}>Batal</button><button type="button" className="button primary" onClick={check}><Icon icon={FileUp} size={16} />Periksa data</button></>
-        : <><button type="button" className="button secondary" onClick={() => setRows(null)}>Perbaiki data</button>
-          <button type="button" className="button primary" disabled={AWAITING_BACKEND || !valid.length} onClick={() => { valid.forEach(r => r.task && dispatch({ type: "createTask", task: r.task })); onClose(); }}>Impor {valid.length} tugas</button></>}
+        ? <><button type="button" className="button secondary" onClick={onClose}>Batal</button><button type="button" className="button primary" disabled={busy} onClick={() => void check()}><Icon icon={FileUp} size={16} />{busy ? "Memeriksa..." : "Periksa data"}</button></>
+        : <><button type="button" className="button secondary" disabled={busy} onClick={() => { setRows(null); setError(""); }}>Perbaiki data</button>
+          <button type="button" className="button primary" disabled={busy || !valid.length} onClick={() => void commitImport()}>{busy ? "Mengimpor..." : `Impor ${valid.length} tugas`}</button></>}
     </div>
   </Modal>;
 }

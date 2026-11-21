@@ -2,8 +2,14 @@ import type {
   Assignment,
   Competency,
   Decision,
+  Employment,
+  HrRequest,
+  LeaveRequest,
+  LeaveType,
   Member,
   MemberCompetency,
+  PerformanceConfig,
+  PerformanceReview,
   PresetId,
   Priority,
   Project,
@@ -20,9 +26,6 @@ import type { Candidate, EngineSettings, FilteredOut } from "@/lib/engine/score"
 import type { Tone } from "@/lib/engine/whatif";
 
 export const DATA_MODE: "api" | "mock" = process.env.NEXT_PUBLIC_DATA_MODE === "mock" ? "mock" : "api";
-/** Fitur corporate-first belum punya endpoint (docs/ENDPOINTS-CORPORATE-FIRST.md); di mode api aksinya nonaktif. */
-export const AWAITING_BACKEND = DATA_MODE === "api";
-export const AWAITING_BACKEND_NOTE = "Menunggu backend: fitur ini belum tersimpan ke server.";
 
 export interface NotifyPrefs {
   assigned: boolean;
@@ -30,7 +33,7 @@ export interface NotifyPrefs {
   reminder: boolean;
 }
 
-export type ServerRole = "admin" | "manajer" | "anggota";
+export type ServerRole = "admin" | "manajer" | "anggota" | "hr";
 
 export interface AuthUser {
   id: string;
@@ -39,7 +42,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: ServerRole;
-  home: "/dashboard" | "/saya";
+  home: "/dashboard" | "/saya" | "/hr";
   isActive: boolean;
   notifyPrefs: NotifyPrefs;
 }
@@ -73,11 +76,16 @@ export interface BootstrapPayload {
   period: WorkPeriod;
   periods: WorkPeriod[];
   settings: EngineSettings;
+  hrSettings?: { weeklyHours: number; reserveHours: number };
   competencies: Competency[];
   members: Member[];
+  divisions?: string[];
   projects: Project[];
   tasks: Task[];
   decisions: Decision[];
+  hrRequests?: HrRequest[];
+  performanceConfig?: PerformanceConfig;
+  performanceReviews?: PerformanceReview[];
   today: string;
   now: string;
 }
@@ -330,29 +338,94 @@ export const api = {
     list: (withSettings = false) =>
       request<{ members: Member[]; invitations?: PendingInvitation[] }>(`/members${withSettings ? "?settings=1" : ""}`),
     get: (id: string) => request<{ member: Member }>(`/members/${encodeURIComponent(id)}`),
-    create: (body: { name: string; email: string; role: string; access: ServerRole }) =>
+    create: (body: {
+      name: string;
+      email: string;
+      role: string;
+      access: ServerRole;
+      employmentType?: Employment;
+      team?: string;
+      division?: string;
+      weeklyLimit?: number;
+      workHoursOverride?: number;
+      reserveHoursOverride?: number;
+      availableHours?: number | null;
+      isActive?: boolean;
+    }) =>
       request<{ member: Member; inviteToken?: string }>("/members", { method: "POST", body: JSON.stringify(body) }),
     resendInvite: (id: string) =>
       request<{ ok: boolean; inviteToken?: string }>(`/members/${encodeURIComponent(id)}/invite-resend`, { method: "POST" }),
-    update: (id: string, body: { name: string; role: string; email: string; weeklyLimit: number }) =>
-      request<{ member: Member }>(`/members/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+    update: (
+      id: string,
+      body: Partial<{
+        name: string;
+        role: string;
+        email: string;
+        weeklyLimit: number;
+        employmentType: Employment;
+        team: string;
+        division: string;
+        workHoursOverride: number | null;
+        reserveHoursOverride: number | null;
+        availableHours: number | null;
+        isActive: boolean;
+      }>,
+    ) => request<{ member: Member }>(`/members/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+    updateAvailability: (
+      id: string,
+      body: { periodId?: string; availableHours: number | null; weeklyLimit: number; leaveDates: string[] },
+    ) =>
+      request<{ member: Member }>(`/members/${encodeURIComponent(id)}/availability`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    importCsv: (body: { csv: string; dryRun: boolean }) =>
+      request<{ rows: { line: number; member?: Member; error?: string }[] }>("/members/import", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     verifyCompetency: (id: string, compId: string) =>
       request<{ member: Member }>(`/members/${encodeURIComponent(id)}/competencies/${encodeURIComponent(compId)}/verify`, { method: "POST" }),
     setAccess: (id: string, body: { access?: ServerRole; isActive?: boolean }) =>
       request<{ member: Member }>(`/members/${encodeURIComponent(id)}/access`, { method: "PATCH", body: JSON.stringify(body) }),
     remind: (id: string) =>
       request<{ ok: boolean }>(`/members/${encodeURIComponent(id)}/remind`, { method: "POST" }),
+    decideLeave: (id: string, reqId: string, approve: boolean) =>
+      request<{ member: Member }>(`/members/${encodeURIComponent(id)}/leave-requests/${encodeURIComponent(reqId)}/decision`, {
+        method: "POST",
+        body: JSON.stringify({ approve }),
+      }),
   },
   tasks: {
     list: (periodId?: string) =>
       request<{ tasks: Task[] }>(`/tasks${periodId ? `?periodId=${encodeURIComponent(periodId)}` : ""}`),
     get: (id: string) => request<{ task: Task; decisions: Decision[] }>(`/tasks/${encodeURIComponent(id)}`),
-    create: (body: { projectId: string; title: string; description: string; dueDate: string; priority: Priority; draft: boolean }) =>
-      request<{ task: Task }>("/tasks", { method: "POST", body: JSON.stringify(body) }),
+    create: (body: {
+      projectId: string;
+      title: string;
+      description: string;
+      dueDate: string;
+      dueTime?: string;
+      priority: Priority;
+      draft: boolean;
+    }) => request<{ task: Task }>("/tasks", { method: "POST", body: JSON.stringify(body) }),
     update: (
       id: string,
-      body: Partial<{ projectId: string; title: string; description: string; dueDate: string; priority: Priority; status: TaskStatus }>,
+      body: Partial<{
+        projectId: string;
+        title: string;
+        description: string;
+        dueDate: string;
+        dueTime: string;
+        priority: Priority;
+        status: TaskStatus;
+      }>,
     ) => request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+    importCsv: (body: { csv: string; dryRun: boolean }) =>
+      request<{ rows: { line: number; task?: Task; error?: string }[] }>("/tasks/import", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     delete: (id: string) => request<{ ok: boolean }>(`/tasks/${encodeURIComponent(id)}`, { method: "DELETE" }),
     flowStart: (id: string) => request<{ ok: boolean }>(`/tasks/${encodeURIComponent(id)}/flow-start`, { method: "POST" }),
     analyzeDna: (id: string) => request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/analyze-dna`, { method: "POST" }),
@@ -367,8 +440,20 @@ export const api = {
     reject: (id: string, body: { preset: PresetId; reasonCode: string; note?: string }) =>
       request<{ task: Task; decision: Decision }>(`/tasks/${encodeURIComponent(id)}/reject`, { method: "POST", body: JSON.stringify(body) }),
     unassign: (id: string) => request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/unassign`, { method: "POST" }),
-    updateStatus: (id: string, body: { status: TaskStatus; actualHours?: number }) =>
+    updateStatus: (id: string, body: { status: TaskStatus; actualHours?: number; qualityScore?: number }) =>
       request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify(body) }),
+    decideExtraTime: (id: string, approve: boolean) =>
+      request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/extra-time/decision`, {
+        method: "POST",
+        body: JSON.stringify({ approve }),
+      }),
+    updateResultNote: (id: string, note: string) =>
+      request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/result-note`, {
+        method: "PATCH",
+        body: JSON.stringify({ note }),
+      }),
+    reviewChangeRequest: (id: string) =>
+      request<{ task: Task }>(`/tasks/${encodeURIComponent(id)}/change-request/review`, { method: "POST" }),
     batchPreview: (preset?: PresetId) =>
       request<{ pairs: BatchPair[] }>(`/batch/preview${preset ? `?preset=${encodeURIComponent(preset)}` : ""}`),
     batchCommit: (body: { preset: PresetId; items: { taskId: string; memberId: string; hours: number }[] }) =>
@@ -382,6 +467,77 @@ export const api = {
       request<{ task: Task }>(`/saya/tasks/${encodeURIComponent(id)}/respond`, { method: "POST", body: JSON.stringify(body) }),
     updateProgress: (id: string, body: { remainingHours?: number; complete?: boolean; actualHours?: number }) =>
       request<{ task: Task }>(`/saya/tasks/${encodeURIComponent(id)}/progress`, { method: "PATCH", body: JSON.stringify(body) }),
+    requestExtraTime: (id: string, body: { hours: number; reason: string }) =>
+      request<{ task: Task }>(`/saya/tasks/${encodeURIComponent(id)}/extra-time`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    requestChange: (id: string, body: { reason: string }) =>
+      request<{ task: Task }>(`/saya/tasks/${encodeURIComponent(id)}/change-request`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    createLeaveRequest: (body: { start: string; end: string; type: LeaveType; reason: string }) =>
+      request<{ member: Member }>("/saya/leave-requests", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  },
+  hr: {
+    listDivisions: () => request<{ divisions: string[] }>("/hr/divisions"),
+    createDivision: (name: string) =>
+      request<{ division: string }>("/hr/divisions", { method: "POST", body: JSON.stringify({ name }) }),
+    renameDivision: (oldName: string, newName: string) =>
+      request<{ division: string }>(`/hr/divisions/${encodeURIComponent(oldName)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: newName }),
+      }),
+    placeMembers: (body: { ids: string[]; division: string; team?: string }) =>
+      request<{ members: Member[] }>("/hr/members/place", { method: "POST", body: JSON.stringify(body) }),
+    getSettings: () => request<{ settings: { weeklyHours: number; reserveHours: number } }>("/hr/settings"),
+    updateSettings: (body: { weeklyHours: number; reserveHours: number }) =>
+      request<{ settings: { weeklyHours: number; reserveHours: number } }>("/hr/settings", {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    getPerformanceConfig: () => request<{ config: PerformanceConfig }>("/hr/performance-config"),
+    updatePerformanceConfig: (config: PerformanceConfig) =>
+      request<{ config: PerformanceConfig }>("/hr/performance-config", {
+        method: "PUT",
+        body: JSON.stringify(config),
+      }),
+    createRequest: (body: { title: string; description: string }) =>
+      request<{ request: HrRequest }>("/hr/requests", { method: "POST", body: JSON.stringify(body) }),
+    listRequests: (status?: "belum" | "selesai") =>
+      request<{ requests: HrRequest[] }>(`/hr/requests${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+    markRequestRead: (id: string) =>
+      request<{ request: HrRequest }>(`/hr/requests/${encodeURIComponent(id)}/read`, { method: "POST" }),
+    handleRequest: (id: string) =>
+      request<{ request: HrRequest }>(`/hr/requests/${encodeURIComponent(id)}/handle`, { method: "POST" }),
+    listLeaveRequests: (status?: string) =>
+      request<{ leaveRequests: LeaveRequest[] }>(`/hr/leave-requests${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+    decideLeave: (reqId: string, approve: boolean) =>
+      request<{ member: Member }>(`/hr/leave-requests/${encodeURIComponent(reqId)}/decision`, {
+        method: "POST",
+        body: JSON.stringify({ approve }),
+      }),
+    listPerformanceReviews: (params?: { period?: string; memberId?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.period) qs.set("period", params.period);
+      if (params?.memberId) qs.set("memberId", params.memberId);
+      const q = qs.toString();
+      return request<{ reviews: PerformanceReview[] }>(`/hr/performance-reviews${q ? `?${q}` : ""}`);
+    },
+    createPerformanceReview: (body: {
+      memberId: string;
+      period: string;
+      note: string;
+      criteria: { id: string; name?: string; score: number }[];
+    }) =>
+      request<{ review: PerformanceReview }>("/manager/performance-reviews", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   },
   analytics: {
     decisions: () => request<{ decisions: Decision[] }>("/decisions"),

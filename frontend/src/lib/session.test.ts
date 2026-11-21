@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { authenticate, authUserToAccount } from "./session";
 
 describe("authenticate", () => {
-  it("mengarahkan admin dan manajer ke Dashboard dan anggota ke Beranda saya", () => {
+  it("mengarahkan admin dan manajer ke Dashboard, HR ke Dashboard HR, dan anggota ke Beranda saya", () => {
     expect(authenticate("krisna@pantara.id", "pantara2026")).toMatchObject({ role: "admin", home: "/dashboard" });
     expect(authenticate("manajer@pantara.id", "pantara2026")).toMatchObject({ role: "manajer", home: "/dashboard" });
+    expect(authenticate("hr@pantara.id", "pantara2026")).toMatchObject({ role: "hr", home: "/hr" });
     expect(authenticate("bima@pantara.id", "pantara2026")).toMatchObject({ role: "anggota", memberId: "bima", home: "/saya" });
   });
 
@@ -40,6 +41,22 @@ describe("authenticate", () => {
       role: "anggota",
       home: "/saya",
       memberId: "bima",
+    });
+
+    const hrAcc = authUserToAccount({
+      id: "usr-hr",
+      organizationId: "org-1",
+      email: "hr@pantara.id",
+      name: "Nadia Putri",
+      role: "hr",
+      home: "/hr",
+      isActive: true,
+      notifyPrefs: { assigned: true, rejected: true, reminder: true },
+    });
+    expect(hrAcc).toMatchObject({
+      role: "hr",
+      home: "/hr",
+      title: "Human Resources",
     });
   });
 });

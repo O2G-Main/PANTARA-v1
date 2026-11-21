@@ -6,7 +6,7 @@ import { useState } from "react";
 import { CircleCheck, ShieldAlert, UserPlus, Users, UserCheck, Search, SearchX } from "lucide-react";
 import { CapacityBar, DataBadge, EmptyState, MetricCard, PageHeading, Person } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
-import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import type { Employment, Member } from "@/lib/demo/types";
@@ -196,6 +196,7 @@ export function Team() {
                 email: input.email,
                 role: input.role,
                 access: "anggota",
+                employmentType: input.employmentType,
               });
               dispatch({ type: "upsertMember", member: res.member });
               setAdding(false);
@@ -299,11 +300,10 @@ function AddMember({ onClose, onSave }: { onClose: () => void; onSave: (m: Membe
           </label>
           <label className="field full">
             <span className="field-label">Jenis hubungan kerja</span>
-            <select className="select" value={employment} disabled={AWAITING_BACKEND} onChange={(e) => setEmployment(e.target.value as Employment)}>
+            <select className="select" value={employment} onChange={(e) => setEmployment(e.target.value as Employment)}>
               <option value="karyawan">Karyawan (minta tambahan waktu, tidak menolak tugas)</option>
               <option value="freelancer">Freelancer (boleh menolak penugasan)</option>
             </select>
-            {AWAITING_BACKEND && <span className="field-hint">{AWAITING_BACKEND_NOTE}</span>}
           </label>
         </div>
         {error && (

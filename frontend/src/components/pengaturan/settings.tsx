@@ -432,7 +432,7 @@ export function RecommendationSettings() {
   );
 }
 
-const ACCESS: Record<Member["access"], string> = { admin: "Admin", manajer: "Manajer", anggota: "Karyawan" };
+const ACCESS: Record<Member["access"], string> = { admin: "Admin", manajer: "Manajer", anggota: "Karyawan", hr: "HR" };
 
 export function MemberSettings() {
   const { members, reload } = useDemo();

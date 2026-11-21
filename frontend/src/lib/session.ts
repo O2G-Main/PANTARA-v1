@@ -98,6 +98,7 @@ function initialsOf(name: string): string {
 function defaultTitle(role: AuthUser["role"]): string {
   if (role === "admin") return "Admin Ruang Kerja";
   if (role === "manajer") return "Manajer Proyek";
+  if (role === "hr") return "Human Resources";
   return "Anggota Tim";
 }
 

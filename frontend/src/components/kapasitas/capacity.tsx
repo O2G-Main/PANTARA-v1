@@ -6,7 +6,7 @@ import { useState } from "react";
 import { CalendarOff, Clock3, Gauge, ShieldAlert } from "lucide-react";
 import { CapacityBar, DataBadge, MetricCard, PageHeading, Person, SectionTitle } from "@/components/app/parts";
 import { Badge, Icon } from "@/components/ui";
-import { AWAITING_BACKEND, AWAITING_BACKEND_NOTE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { weeklyLoad } from "@/lib/engine/capacity";
@@ -22,6 +22,44 @@ export function Capacity() {
   const reserve = settings.reserveRatio ?? 0;
   const leaveQueue = members.flatMap((m) => (m.leaveRequests ?? []).filter((r) => r.manager === "menunggu" && r.hr !== "ditolak").map((r) => ({ m, r })));
   const [filter, setFilter] = useState<Filter>("semua");
+  const [busyLeaveId, setBusyLeaveId] = useState<string | null>(null);
+  const [leaveError, setLeaveError] = useState("");
+  const [reserveError, setReserveError] = useState("");
+
+  async function handleLeaveDecision(memberId: string, reqId: string, approve: boolean) {
+    if (busyLeaveId) return;
+    setLeaveError("");
+    if (DATA_MODE === "api") {
+      setBusyLeaveId(reqId);
+      try {
+        const res = await api.members.decideLeave(memberId, reqId, approve);
+        dispatch({ type: "upsertMember", member: res.member });
+      } catch (err) {
+        setLeaveError(err instanceof ApiError ? err.message : "Gagal memproses keputusan cuti.");
+      } finally {
+        setBusyLeaveId(null);
+      }
+      return;
+    }
+    const target = members.find((m) => m.id === memberId);
+    if (target) dispatch({ type: "upsertMember", member: decideLeave(target, reqId, "manager", approve) });
+  }
+
+  function handleReserveChange(ratio: number) {
+    const prev = settings;
+    const next = { ...settings, reserveRatio: ratio };
+    setReserveError("");
+    dispatch({ type: "settings", settings: next });
+    if (DATA_MODE === "api") {
+      void api.workspace.updateSettings(next).then(
+        (res) => dispatch({ type: "settings", settings: res.settings }),
+        (err) => {
+          dispatch({ type: "settings", settings: prev });
+          setReserveError(err instanceof ApiError ? err.message : "Gagal menyimpan cadangan kapasitas.");
+        },
+      );
+    }
+  }
   const rows = members.map((m) => {
     const allocated = allocatedHours(m.id, tasks);
     const util = m.availableHours ? allocated / m.availableHours : 0;
@@ -82,16 +120,16 @@ export function Capacity() {
                 <span className="table-sub">{r.reason}</span>
               </span>
               <span className="page-actions">
-                <button type="button" className="button secondary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "manager", false) })}>
+                <button type="button" className="button secondary" disabled={busyLeaveId === r.id} onClick={() => void handleLeaveDecision(m.id, r.id, false)}>
                   Tolak
                 </button>
-                <button type="button" className="button primary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "manager", true) })}>
+                <button type="button" className="button primary" disabled={busyLeaveId === r.id} onClick={() => void handleLeaveDecision(m.id, r.id, true)}>
                   Setujui
                 </button>
               </span>
             </div>
           ))}
-          {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+          {leaveError && <p className="field-error spaced" role="alert">{leaveError}</p>}
         </section>
       )}
       <section className="card spaced">
@@ -107,11 +145,10 @@ export function Capacity() {
             max={30}
             step={5}
             value={Math.round(reserve * 100)}
-            disabled={AWAITING_BACKEND}
-            onChange={(e) => dispatch({ type: "settings", settings: { ...settings, reserveRatio: Number(e.target.value) / 100 } })}
+            onChange={(e) => handleReserveChange(Number(e.target.value) / 100)}
           />
         </label>
-        {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+        {reserveError && <p className="field-error spaced" role="alert">{reserveError}</p>}
       </section>
       <section className="card spaced">
         <div className="toolbar">
