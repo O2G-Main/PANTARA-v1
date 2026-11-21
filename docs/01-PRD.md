@@ -211,8 +211,17 @@ Prasyarat agar alur jalan: Work Twin anggota terisi (P18, P19) dan manajer bisa 
 | # | Halaman | Rute | Peran | Tugas | Info utama | Info pendukung | Aksi utama | Aksi sekunder | State khusus | Prioritas |
 |---|---|---|---|---|---|---|---|---|---|---|
 | P24 | Beranda saya | `/saya` | anggota | Melihat tugas dan kapasitas sendiri | Penugasan baru (menunggu jawaban), tugas berjalan, kapasitas saya | Pengingat isi ketersediaan | Buka penugasan | — | kosong, ketersediaan belum diisi | Should |
-| P25 | Ketersediaan saya | `/saya/ketersediaan` | anggota | Mengisi jam tersedia & cuti per periode | Jam per hari/periode, tanggal cuti | Batas kerja mingguan | Simpan | Salin dari periode lalu | validasi jam | Should |
-| P26 | Penugasan masuk | `/saya/tugas/[id]` | anggota | Menerima atau menolak penugasan | Tugas, tenggat, estimasi, alasan dipilih | Task DNA | Terima | Tolak dengan alasan, Minta penyesuaian | sudah dijawab | Should |
+| P25 | Ketersediaan saya | `/saya/ketersediaan` | anggota | Melihat jam tersedia & cuti per periode (hanya baca; diatur HR, CORPORATE-FIRST) | Jam tersedia, batas mingguan, cuti terjadwal | Pengajuan cuti menunggu | Ajukan cuti | — | — | Should |
+| P42 | Pengajuan cuti | `/saya/cuti` | anggota | Mengajukan cuti, disetujui manajer & HR (paralel) | Rentang tanggal, jenis, alasan wajib; riwayat pengajuan | Status manajer & HR | Ajukan cuti | — | validasi rentang & alasan | Should |
+| HR | Dasbor HR | `/hr` | hr | Memantau kelengkapan data dan penilaian anggota | Antrean, kelengkapan, ringkasan performa | Filter bulan | Buka anggota | — | kosong | Should |
+| HR2 | Anggota (HR) | `/hr/anggota` | hr | Menambah, mengimpor CSV, mengubah anggota dan jenis hubungan kerja | Tabel anggota, jam kerja, ketersediaan | Pembacaan CV | Tambah, Impor | Ubah | kosong | Should |
+| HR3 | Tim & divisi | `/hr/tim` | hr | Menempatkan anggota ke tim dan divisi | Divisi, tim, anggota | — | Tambah divisi/anggota | Edit divisi | kosong | Should |
+| HR4 | Riwayat & performa | `/hr/riwayat` | hr | Meninjau riwayat kerja dan skor per periode | Filter anggota, divisi, status, bulan; rincian skor | Tren enam bulan | Buka rincian | — | kosong | Should |
+| HR5 | Pengaturan HR | `/hr/pengaturan` | hr | Menetapkan jam kerja standar, cadangan, kriteria performa | Jam, cadangan, bobot | — | Simpan | — | validasi | Should |
+| HRI | Inbox HR | `/hr/inbox` | hr | Menangani pengajuan dan persetujuan cuti | Daftar pengajuan, antrean cuti | Filter belum dibaca | Tandai ditangani, Setujui/Tolak cuti | — | kosong | Should |
+| HRQ | Pengajuan ke HR | `/pengajuan-hr` | semua | Mengirim pengajuan ke HR | Judul, uraian | — | Kirim | — | validasi | Should |
+| PEN | Penilaian anggota | `/penilaian` | manajer | Mencatat penilaian manajer per periode | Anggota, bulan, nilai per kriteria, catatan | Skor otomatis | Simpan | — | validasi, duplikat | Should |
+| P26 | Penugasan masuk | `/saya/tugas/[id]` | anggota | Menerima penugasan atau meminta tambahan waktu (freelancer: minta perubahan) | Tugas, tenggat, estimasi, alasan dipilih | Task DNA | Terima | Tolak dengan alasan, Minta penyesuaian | sudah dijawab | Should |
 | P27 | Profil kerja saya | `/saya/profil` | anggota | Menjaga Work Twin sendiri | Kompetensi (klaim) + level, preferensi jenis tugas, batas kerja | Data apa yang dilihat manajer | Simpan | — | — | Should |
 
 **Pengaturan & akun**
@@ -373,3 +382,4 @@ Prasyarat agar alur jalan: Work Twin anggota terisi (P18, P19) dan manajer bisa 
 | 2026-10-17 | P10 Dasbor: tabel Kapasitas anggota menampilkan sebanyak mungkin baris yang muat (ukuran baris tetap) sampai dasar kartu; pager Sebelumnya/Berikutnya hanya muncul bila data tidak muat |
 | 2026-10-18 | Mesin skor diperkuat: cuti mengurangi jam (tidak menyingkirkan), keyakinan sumber kompetensi, K berbobot p, bobot kompetensi naik untuk tugas kompleks, A = jam kosong sampai tenggat, C cembung, F tanpa hitung ganda, rentang estimasi, pita praktis setara; F22-F24 ditambahkan; riset R16-R18 |
 | 2026-10-18 | Simulasi pemakaian nyata: rute P10 `/dashboard`, P13 `/tugas/[id]/kebutuhan`, P17 `/tugas/massal`; label UI "Anggota" → "Karyawan", "Dasbor" → "Dashboard", "Task DNA" → "Analisis kebutuhan", "Work Twin" → "Profil kerja", "Alokasi batch" → "Penugasan massal" (nama di dokumen ini tetap sebagai istilah konsep) |
+| 2026-11-21 | Halaman HR (HR, HR2-HR5, HRI, HRQ) dan Penilaian (PEN) dicatat di peta halaman; sudah dibangun di frontend dengan akun hardcode |
