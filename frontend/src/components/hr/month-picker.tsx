@@ -7,7 +7,7 @@ export function MonthPicker({ value, onChange }: { value: string; onChange: (mon
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [year, setYear] = useState(Number(value.slice(0, 4)));
-  return <div className="field"><span>Bulan penilaian</span>
+  return <div className="field"><span className="field-label">Bulan penilaian</span>
     <button ref={trigger} type="button" className="input date-trigger" popoverTarget={id} aria-haspopup="dialog" aria-label={"Bulan penilaian, " + monthName(value)} onClick={() => setYear(Number(value.slice(0, 4)))}>
       {monthName(value)}<CalendarDays size={16} /></button>
     <div ref={panel} id={id} popover="auto" role="dialog" aria-label="Pilih bulan" className="date-pop" onToggle={event => {

@@ -217,14 +217,6 @@ const DemoContext = createContext<{
   meta: WorkspaceMeta;
 } | null>(null);
 
-function todayLocalISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export function DemoProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const [state, dispatch] = useReducer(reducer, INITIAL);
@@ -232,16 +224,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [period, setPeriodState] = useState<WorkPeriod | null>(null);
   const [periods, setPeriods] = useState<WorkPeriod[]>([]);
   const [serverNotifications, setServerNotifications] = useState<ServerNotice[]>([]);
+  // Mode mock memakai jam seed (NOW) supaya tenggat contoh tetap relevan; mode api memakai jam server (boot.today).
   const [today, setToday] = useState<string>(() => NOW.slice(0, 10));
   const [now, setNow] = useState<string>(() => NOW);
-
-  useEffect(() => {
-    if (DATA_MODE !== "mock") return;
-    queueMicrotask(() => {
-      setToday(todayLocalISO());
-      setNow(new Date().toISOString());
-    });
-  }, []);
   const [loading, setLoading] = useState<boolean>(DATA_MODE === "api");
   const [error, setError] = useState<string | null>(null);
   const selectedPeriodRef = useRef<string | undefined>(undefined);

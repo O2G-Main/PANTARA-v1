@@ -3,14 +3,14 @@
 import { Paged } from "@/components/ui/pager";
 import Link from "next/link";
 import { useState } from "react";
-import { CalendarRange, Clock3, Gauge, ShieldAlert } from "lucide-react";
+import { CalendarOff, Clock3, Gauge, ShieldAlert } from "lucide-react";
 import { CapacityBar, DataBadge, MetricCard, PageHeading, Person, SectionTitle } from "@/components/app/parts";
-import { AvailabilityModal } from "@/components/tim/member-profile";
-import { Icon } from "@/components/ui";
-import { api, DATA_MODE } from "@/lib/api";
+import { Badge, Icon } from "@/components/ui";
+import { AWAITING_BACKEND, AWAITING_BACKEND_NOTE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { weeklyLoad } from "@/lib/engine/capacity";
+import { decideLeave } from "@/lib/engine/leave";
 import { allocatedHours } from "@/lib/engine/score";
 import { utilTone } from "@/lib/engine/whatif";
 import { hours, number, percent, shortDate } from "@/lib/format";
@@ -18,9 +18,10 @@ import { hours, number, percent, shortDate } from "@/lib/format";
 type Filter = "semua" | "aman" | "penuh" | "belum";
 
 export function Capacity() {
-  const { members, tasks, period, today, dispatch } = useDemo();
+  const { members, tasks, period, today, settings, dispatch } = useDemo();
+  const reserve = settings.reserveRatio ?? 0;
+  const leaveQueue = members.flatMap((m) => (m.leaveRequests ?? []).filter((r) => r.manager === "menunggu" && r.hr !== "ditolak").map((r) => ({ m, r })));
   const [filter, setFilter] = useState<Filter>("semua");
-  const [editing, setEditing] = useState<string | null>(null);
   const rows = members.map((m) => {
     const allocated = allocatedHours(m.id, tasks);
     const util = m.availableHours ? allocated / m.availableHours : 0;
@@ -33,7 +34,6 @@ export function Capacity() {
   const missing = rows.filter((r) => r.group === "belum");
   const count = (f: Filter) => (f === "semua" ? rows.length : rows.filter((r) => r.group === f).length);
   const shown = rows.filter((r) => filter === "semua" || r.group === filter);
-  const member = members.find((m) => m.id === editing);
   const people = filled.map((r) => r.m);
   const weeks = people.length ? weeklyLoad(people[0], [], today).map((w) => w.start) : [];
   const periodLabel = period?.label ?? PERIOD.label;
@@ -43,14 +43,6 @@ export function Capacity() {
       <PageHeading
         title="Kapasitas"
         subtitle="Alokasi waktu dan ketersediaan kerja semua karyawan dalam periode aktif. Jam kerja, bukan ukuran produktivitas pribadi."
-        actions={
-          members.length > 0 && (
-            <button className="button primary" onClick={() => setEditing(missing[0]?.m.id ?? members[0]?.id ?? null)}>
-              <Icon icon={CalendarRange} />
-              Perbarui ketersediaan
-            </button>
-          )
-        }
       />
       <div className="metrics-grid three">
         <MetricCard icon={Clock3} label="Total kapasitas tersedia" value={number(capacity)} unit="jam" note={`Dari ${filled.length} karyawan dengan data terisi`} />
@@ -59,7 +51,7 @@ export function Capacity() {
           label="Total teralokasi"
           value={number(allocated)}
           unit={`/ ${number(capacity)} jam · ${capacity ? percent(allocated / capacity, 1) : "0%"}`}
-          note={`Sisa ${number(Math.max(0, capacity - allocated))} jam untuk penugasan baru`}
+          note={`Sisa ${number(Math.max(0, capacity * (1 - reserve) - allocated))} jam untuk penugasan biasa, cadangan ${number(capacity * reserve)} jam`}
           tone="brand"
         />
         <MetricCard
@@ -71,7 +63,57 @@ export function Capacity() {
           tone={missing.length ? "warn" : undefined}
         />
       </div>
-      <section className="card">
+      {leaveQueue.length > 0 && (
+        <section className="card spaced">
+          <SectionTitle
+            title="Pengajuan cuti"
+            subtitle="Cuti berlaku setelah manajer dan HR sama-sama setuju. Persetujuan HR ada di Inbox HR."
+            action={<Badge tone="warn">{leaveQueue.length} menunggu</Badge>}
+          />
+          {leaveQueue.map(({ m, r }) => (
+            <div key={r.id} className="dna-row">
+              <span>
+                <Person member={m} />
+                <span className="table-sub with-icon">
+                  <Icon icon={CalendarOff} size={13} />
+                  {r.type} · {shortDate(r.start)}
+                  {r.end !== r.start ? ` - ${shortDate(r.end)}` : ""} · HR: {r.hr}
+                </span>
+                <span className="table-sub">{r.reason}</span>
+              </span>
+              <span className="page-actions">
+                <button type="button" className="button secondary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "manager", false) })}>
+                  Tolak
+                </button>
+                <button type="button" className="button primary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "manager", true) })}>
+                  Setujui
+                </button>
+              </span>
+            </div>
+          ))}
+          {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+        </section>
+      )}
+      <section className="card spaced">
+        <SectionTitle
+          title="Kapasitas cadangan"
+          subtitle="Porsi jam tersedia tiap karyawan yang disisakan untuk tugas mendadak. Rekomendasi tugas prioritas normal dan rendah tidak memakainya; tugas prioritas tinggi boleh."
+        />
+        <label className="field">
+          <span className="field-label">Cadangan: {Math.round(reserve * 100)}% ({number(capacity * reserve)} jam tim)</span>
+          <input
+            type="range"
+            min={0}
+            max={30}
+            step={5}
+            value={Math.round(reserve * 100)}
+            disabled={AWAITING_BACKEND}
+            onChange={(e) => dispatch({ type: "settings", settings: { ...settings, reserveRatio: Number(e.target.value) / 100 } })}
+          />
+        </label>
+        {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+      </section>
+      <section className="card spaced">
         <div className="toolbar">
           <div className="toggle" role="group" aria-label="Filter kapasitas">
             {(
@@ -130,15 +172,9 @@ export function Capacity() {
                         <DataBadge complete={m.availableHours !== null} />
                       </td>
                       <td className="numeric">
-                        {m.availableHours === null ? (
-                          <button className="row-link accent" onClick={() => setEditing(m.id)}>
-                            Lengkapi data
-                          </button>
-                        ) : (
-                          <Link className="row-link" href={`/tim/${m.id}`}>
-                            Rincian alokasi
-                          </Link>
-                        )}
+                        <Link className="row-link" href={`/tim/${m.id}`}>
+                          Rincian alokasi
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -208,27 +244,6 @@ export function Capacity() {
           )}
         </Paged>
       </section>
-      {member && (
-        <AvailabilityModal
-          member={member}
-          onClose={() => setEditing(null)}
-          onSave={async (m) => {
-            if (DATA_MODE === "api") {
-              const res = await api.members.saveAvailability(m.id, {
-                periodId: period?.id,
-                availableHours: m.availableHours,
-                weeklyLimit: m.weeklyLimit,
-                leaveDates: m.leaveDates,
-              });
-              dispatch({ type: "upsertMember", member: res.member });
-              setEditing(null);
-              return;
-            }
-            dispatch({ type: "upsertMember", member: m });
-            setEditing(null);
-          }}
-        />
-      )}
     </div>
   );
 }

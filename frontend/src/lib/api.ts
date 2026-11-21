@@ -20,6 +20,9 @@ import type { Candidate, EngineSettings, FilteredOut } from "@/lib/engine/score"
 import type { Tone } from "@/lib/engine/whatif";
 
 export const DATA_MODE: "api" | "mock" = process.env.NEXT_PUBLIC_DATA_MODE === "mock" ? "mock" : "api";
+/** Fitur corporate-first belum punya endpoint (docs/ENDPOINTS-CORPORATE-FIRST.md); di mode api aksinya nonaktif. */
+export const AWAITING_BACKEND = DATA_MODE === "api";
+export const AWAITING_BACKEND_NOTE = "Menunggu backend: fitur ini belum tersimpan ke server.";
 
 export interface NotifyPrefs {
   assigned: boolean;
@@ -130,18 +133,9 @@ export interface SimulationPayload {
   teamAfter: number;
 }
 
-export interface AvailabilitySnapshot {
-  memberId: string;
-  periodId: string;
-  availableHours: number | null;
-  weeklyLimit: number;
-  leaveDates: string[];
-}
-
 export interface SelfOverviewPayload {
   member: Member;
   tasks: Task[];
-  previousAvailability?: AvailabilitySnapshot;
 }
 
 export interface ReportPayload {
@@ -342,8 +336,6 @@ export const api = {
       request<{ ok: boolean; inviteToken?: string }>(`/members/${encodeURIComponent(id)}/invite-resend`, { method: "POST" }),
     update: (id: string, body: { name: string; role: string; email: string; weeklyLimit: number }) =>
       request<{ member: Member }>(`/members/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
-    saveAvailability: (id: string, body: { periodId?: string; availableHours: number | null; weeklyLimit: number; leaveDates: string[] }) =>
-      request<{ member: Member }>(`/members/${encodeURIComponent(id)}/availability`, { method: "PUT", body: JSON.stringify(body) }),
     verifyCompetency: (id: string, compId: string) =>
       request<{ member: Member }>(`/members/${encodeURIComponent(id)}/competencies/${encodeURIComponent(compId)}/verify`, { method: "POST" }),
     setAccess: (id: string, body: { access?: ServerRole; isActive?: boolean }) =>
@@ -386,8 +378,6 @@ export const api = {
     overview: () => request<SelfOverviewPayload>("/saya/overview"),
     updateProfile: (body: { competencies: MemberCompetency[]; prefers: string[]; avoids: string[] }) =>
       request<{ member: Member }>("/saya/profile", { method: "PATCH", body: JSON.stringify(body) }),
-    updateAvailability: (body: { availableHours: number; weeklyLimit: number; leaveDates: string[] }) =>
-      request<{ member: Member }>("/saya/availability", { method: "PUT", body: JSON.stringify(body) }),
     respond: (id: string, body: { accept: boolean; reason?: string }) =>
       request<{ task: Task }>(`/saya/tasks/${encodeURIComponent(id)}/respond`, { method: "POST", body: JSON.stringify(body) }),
     updateProgress: (id: string, body: { remainingHours?: number; complete?: boolean; actualHours?: number }) =>

@@ -38,7 +38,7 @@ const STEPS: { sub: string; href: string; title: string; text: string; points: s
   {
     sub: "Tetapkan", href: "/dashboard",
     title: "Tetapkan, dan kapasitas tim langsung diperbarui.",
-    text: "Pilih kandidat teratas atau orang lain dengan alasan. Karyawan bisa menerima atau menolak, dan setiap keputusan tercatat untuk belajar.",
+    text: "Pilih kandidat teratas atau orang lain dengan alasan. Karyawan bisa menerima atau meminta tambahan waktu, dan setiap keputusan tercatat untuk belajar.",
     points: ["Override dan penolakan tercatat dengan alasan", "Dashboard, Tim, dan Kapasitas ikut berubah"],
     shots: [{ id: "dash-capacity-after", cls: "main" }, { id: "assign-dialog", cls: "side" }],
   },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DATA_MODE } from "@/lib/api";
+import { MonthPicker } from "@/components/hr/month-picker";
 import { PageHeading, SectionTitle } from "@/components/app/parts";
 import { useDemo } from "@/lib/demo/store";
 import { useSession } from "@/lib/session";
@@ -38,8 +39,8 @@ export default function ManagerReview() {
   return <div className="page-enter"><PageHeading title="Penilaian anggota" subtitle="Catat penilaian manajer untuk setiap periode." />
     <section className="card"><SectionTitle title="Penilaian periode" subtitle="Nilai dan bobot tersimpan bersama penilaian." />
       <form className="form-grid" onSubmit={save}>
-        <label className="field"><span className="field-label">Anggota</span><select className="input" value={memberId} onChange={(event) => setMemberId(event.target.value)}><option value="">Pilih anggota</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-        <label className="field"><span className="field-label">Periode</span><input className="input" type="month" required value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+        <label className="field"><span className="field-label">Anggota</span><select className="select" value={memberId} onChange={(event) => setMemberId(event.target.value)}><option value="">Pilih anggota</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+        <MonthPicker value={period} onChange={setPeriod} />
         <p className="muted full">Otomatis: {automatic.score === null ? "data belum lengkap" : `${Math.round(automatic.score)} / 100`} · Porsi {config.automaticWeight}%</p>
         {criteria.map((criterion) => <label className="field" key={criterion.id}><span className="field-label">{criterion.name} · bobot {criterion.weight}</span><input className="input" type="number" min="0" max="100" value={scores[criterion.id] ?? ""} onChange={(event) => setScores({ ...scores, [criterion.id]: event.target.value })} /></label>)}
         <label className="field full"><span className="field-label">Catatan</span><textarea className="input" rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></label>

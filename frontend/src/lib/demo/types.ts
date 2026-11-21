@@ -24,7 +24,8 @@ export interface Member {
   name: string;
   initials: string;
   role: string;
-  employmentType?: "karyawan" | "freelancer";
+  /** Jenis hubungan kerja; kosong = karyawan. Freelancer boleh menolak/minta perubahan penugasan, karyawan meminta tambahan waktu. */
+  employmentType?: Employment;
   team?: string;
   division?: string;
   email: string;
@@ -44,6 +45,33 @@ export interface Member {
   /** Peran akses ruang kerja. */
   access: "admin" | "manajer" | "anggota";
   isActive?: boolean;
+  leaveRequests?: LeaveRequest[];
+}
+
+export type LeaveType = "tahunan" | "sakit" | "izin";
+export type Approval = "menunggu" | "disetujui" | "ditolak";
+
+/** Pengajuan cuti anggota. Manajer dan HR menyetujui paralel; berlaku bila keduanya setuju. */
+export interface LeaveRequest {
+  id: string;
+  start: string;
+  end: string;
+  type: LeaveType;
+  reason: string;
+  requestedAt: string;
+  manager: Approval;
+  hr: Approval;
+}
+
+export type Employment = "karyawan" | "freelancer";
+
+/** Permintaan tambahan jam estimasi dari anggota; tenggat tetap, manajer yang memutuskan. */
+interface ExtraTimeRequest {
+  memberId: string;
+  hours: number;
+  reason: string;
+  requestedAt: string;
+  status: "menunggu" | "disetujui" | "ditolak";
 }
 
 export interface Project {
@@ -87,6 +115,8 @@ export interface Task {
   title: string;
   description: string;
   dueDate: string;
+  /** Jam tenggat "HH:MM" WIB; kosong = 17:00. */
+  dueTime?: string;
   priority: Priority;
   status: TaskStatus;
   assignments: Assignment[];
@@ -102,6 +132,11 @@ export interface Task {
   actualHours?: number;
   completedAt?: string;
   qualityScore?: number;
+  /** Pekerjaan yang dikelola di luar PANTARA (nama sistem/klien); dicatat agar ikut menghitung beban. */
+  externalSource?: string;
+  extraTime?: ExtraTimeRequest;
+  /** Catatan hasil dari manajer (teks, tanpa skor, tidak dipakai rekomendasi). */
+  resultNote?: string;
 }
 
 export interface Decision {
@@ -130,7 +165,7 @@ export interface Weights {
 }
 
 
-export interface PerformanceCriterion {
+interface PerformanceCriterion {
   id: string;
   name: string;
   weight: number;

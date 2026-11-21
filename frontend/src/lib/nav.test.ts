@@ -49,6 +49,7 @@ describe("activeNav", () => {
   it("memakai menu karyawan bila diberikan", () => {
     expect(activeNav("/saya/tugas/TGS-0142", EMPLOYEE_NAVIGATION)).toBe("/saya");
     expect(activeNav("/saya/profil", EMPLOYEE_NAVIGATION)).toBe("/saya/profil");
+    expect(activeNav("/saya/cuti", EMPLOYEE_NAVIGATION)).toBe("/saya/cuti");
   });
 });
 
@@ -68,6 +69,8 @@ describe("canAccess", () => {
     expect(canAccess("manajer", "/akun")).toBe(true);
     expect(canAccess("manajer", "/saya")).toBe(false);
     expect(canAccess("anggota", "/saya")).toBe(true);
+    expect(canAccess("anggota", "/saya/cuti")).toBe(true);
+    expect(canAccess("manajer", "/saya/cuti")).toBe(false);
     expect(canAccess("anggota", "/dashboard")).toBe(false);
   });
 });

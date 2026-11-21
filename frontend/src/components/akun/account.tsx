@@ -190,8 +190,8 @@ export function Account() {
         <SectionTitle title="Notifikasi" />
         {(
           [
-            ["assigned", "Penugasan dijawab karyawan", "Saat karyawan menerima atau menolak penugasan."],
-            ["rejected", "Penugasan ditolak", "Dengan alasan dari karyawan."],
+            ["assigned", "Penugasan dijawab karyawan", "Saat karyawan menerima penugasan atau meminta tambahan waktu."],
+            ["rejected", "Penugasan ditolak", "Dengan alasan dari freelancer."],
             ["reminder", "Pengingat data belum lengkap", "Ringkasan tiap Senin pagi."],
           ] as const
         ).map(([k, t, d]) => (
@@ -282,7 +282,7 @@ export function Help() {
             </li>
             <li>
               <strong>Karyawan menjawab</strong>
-              <p>Karyawan menerima atau menolak dengan alasan. Kapasitas karyawan langsung diperbarui.</p>
+              <p>Karyawan menerima atau meminta tambahan waktu dengan alasan; freelancer bisa meminta perubahan. Kapasitas langsung diperbarui.</p>
             </li>
           </ol>
         </section>

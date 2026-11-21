@@ -3,12 +3,17 @@
 import { useSearchParams } from "next/navigation";
 import { updateQuery } from "@/lib/hr/query";
 import { useEffect, useState } from "react";
-import { Inbox } from "lucide-react";
-import { EmptyState, PageHeading, SectionTitle } from "@/components/app/parts";
+import { CalendarOff, Inbox } from "lucide-react";
+import { EmptyState, PageHeading, Person, SectionTitle } from "@/components/app/parts";
+import { Badge, Icon } from "@/components/ui";
+import { AWAITING_BACKEND, AWAITING_BACKEND_NOTE } from "@/lib/api";
 import { useDemo } from "@/lib/demo/store";
+import { decideLeave, leaveStatus } from "@/lib/engine/leave";
+import { shortDate } from "@/lib/format";
 
 export default function HrInbox() {
-  const { hrRequests = [], dispatch } = useDemo();
+  const { hrRequests = [], members, dispatch } = useDemo();
+  const leaveQueue = members.flatMap((m) => (m.leaveRequests ?? []).filter((r) => r.hr === "menunggu" && leaveStatus(r) === "menunggu").map((r) => ({ m, r })));
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const selected = useSearchParams().get("request");
   const setSelected = (request: string | null) => updateQuery({ request: request ?? "" });
@@ -25,5 +30,15 @@ export default function HrInbox() {
       {current && <section className="card spaced"><SectionTitle title={current.title} subtitle={current.sender + " · " + current.senderRole} /><p style={{ whiteSpace: "pre-wrap" }}>{current.description}</p>{current.handled ? <p role="status">Sudah ditindaklanjuti</p> : <button className="button primary" onClick={() => dispatch({ type: "handleHrRequest", id: current.id })}>Tandai sudah ditindaklanjuti</button>} <button className="button" onClick={() => setSelected(null)}>Tutup detail</button></section>}
       {shown.length ? <div className="table-scroll spaced"><table><thead><tr><th>Pengajuan</th><th>Pengirim</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{shown.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.sender} · {item.senderRole}</td><td>{new Date(item.createdAt).toLocaleString("id-ID")}</td><td>{item.handled ? "Ditindaklanjuti" : item.read ? "Dibaca" : "Baru"}</td><td><button className="button" onClick={() => { setSelected(item.id); dispatch({ type: "readHrRequest", id: item.id }); }}>Buka</button></td></tr>)}</tbody></table></div> : <EmptyState icon={Inbox} title="Belum ada pengajuan" text="Pengajuan yang dikirim ke HR akan muncul di sini." />}
     </section>
+    {leaveQueue.length > 0 && <section className="card spaced"><SectionTitle title="Pengajuan cuti" subtitle="Cuti berlaku setelah manajer dan HR sama-sama setuju." action={<Badge tone="warn">{leaveQueue.length} menunggu</Badge>} />
+      {leaveQueue.map(({ m, r }) => <div key={r.id} className="dna-row"><span><Person member={m} />
+        <span className="table-sub with-icon"><Icon icon={CalendarOff} size={13} />{r.type} · {shortDate(r.start)}{r.end !== r.start ? ` - ${shortDate(r.end)}` : ""} · Manajer: {r.manager}</span>
+        <span className="table-sub">{r.reason}</span></span>
+        <span className="page-actions">
+          <button type="button" className="button secondary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "hr", false) })}>Tolak</button>
+          <button type="button" className="button primary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertMember", member: decideLeave(m, r.id, "hr", true) })}>Setujui</button>
+        </span></div>)}
+      {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+    </section>}
   </div>;
 }

@@ -383,7 +383,7 @@ export function Simulation({ params }: { params: Promise<{ id: string }> }) {
           <form onSubmit={(e) => void submit(e)}>
             <p className="dialog-summary">
               <strong>{task.title}</strong> ditugaskan ke{" "}
-              {people.map((p) => `${p.name} (${hours(current.assignments.find((a) => a.memberId === p.id)!.hours)})`).join(" dan ")}. Karyawan menerima notifikasi dan bisa menerima atau menolak dengan alasan.
+              {people.map((p) => `${p.name} (${hours(current.assignments.find((a) => a.memberId === p.id)!.hours)})`).join(" dan ")}. Karyawan menerima notifikasi dan bisa meminta tambahan waktu; freelancer bisa meminta perubahan.
             </p>
             {sim.conflicts.length > 0 && (
               <div className={`decision-banner ${crit ? "crit" : "warn"}`}>

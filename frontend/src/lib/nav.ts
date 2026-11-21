@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  CalendarOff,
   CalendarRange,
   CircleUser,
   ClipboardCheck,
@@ -73,8 +74,9 @@ const PAGE_MAP = {
   "/keputusan": { id: "P22", label: "Riwayat keputusan", group: "Analisis", icon: History, description: "Meninjau keputusan dan override untuk mengkalibrasi rekomendasi." },
   "/laporan": { id: "P23", label: "Laporan dampak", group: "Analisis", icon: BarChart3, description: "Mengukur dampak pilot: waktu keputusan, konflik terdeteksi, penerimaan, dan override." },
   "/saya": { id: "P24", label: "Beranda saya", group: "Karyawan", icon: Inbox, description: "Melihat penugasan baru, tugas berjalan, dan kapasitas sendiri." },
-  "/saya/ketersediaan": { id: "P25", label: "Ketersediaan saya", group: "Karyawan", icon: CalendarRange, description: "Mengisi jam tersedia dan cuti per periode." },
-  "/saya/tugas/[id]": { id: "P26", label: "Penugasan masuk", group: "Karyawan", icon: ClipboardCheck, description: "Menerima atau menolak penugasan dengan alasan." },
+  "/saya/ketersediaan": { id: "P25", label: "Ketersediaan saya", group: "Karyawan", icon: CalendarRange, description: "Melihat jam tersedia, batas mingguan, dan cuti terjadwal (diatur HR)." },
+  "/saya/cuti": { id: "P42", label: "Pengajuan cuti", group: "Karyawan", icon: CalendarOff, description: "Mengajukan cuti dan memantau persetujuan manajer dan HR." },
+  "/saya/tugas/[id]": { id: "P26", label: "Penugasan masuk", group: "Karyawan", icon: ClipboardCheck, description: "Menerima penugasan atau meminta tambahan waktu dengan alasan." },
   "/saya/profil": { id: "P27", label: "Profil kerja saya", group: "Karyawan", icon: UserRound, description: "Menjaga kompetensi, preferensi, dan batas kerja sendiri." },
   "/pengaturan": { id: "P28", label: "Pengaturan", group: "Sistem", icon: Settings, description: "Mengatur periode default, jam kerja, dan hari libur ruang kerja." },
   "/pengaturan/rekomendasi": { id: "P29", label: "Aturan rekomendasi", group: "Sistem", icon: SlidersHorizontal, description: "Memilih preset bobot dan syarat wajib kandidat." },
@@ -106,7 +108,7 @@ const NAVIGATION: { group: string; routes: PageRoute[] }[] = [
 
 /** Menu sidebar karyawan: hanya halaman miliknya sendiri. */
 export const EMPLOYEE_NAVIGATION: { group: string; routes: PageRoute[] }[] = [
-  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/profil", "/pengajuan-hr"] },
+  { group: "Karyawan", routes: ["/saya", "/saya/ketersediaan", "/saya/cuti", "/saya/profil", "/pengajuan-hr"] },
 ];
 
 export type AccessRole = "admin" | "manajer" | "anggota" | "karyawan" | "hr";

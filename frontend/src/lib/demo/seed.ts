@@ -2,7 +2,7 @@ import type { Competency, Decision, Member, Project, Task } from "./types";
 
 // Simulasi pemakaian nyata: agensi pengembangan perangkat lunak di Jember dengan 20 karyawan
 // dan 5 proyek klien. Data sengaja memuat kondisi sehari-hari: karyawan belum mengisi ketersediaan, karyawan baru
-// tanpa kompetensi, pemula yang levelnya masih klaim, magang dan paruh waktu, cuti di tengah minggu, beban hampir
+// tanpa kompetensi, pemula yang levelnya masih klaim, magang, freelancer paruh waktu, cuti di tengah minggu, beban hampir
 // penuh, penugasan yang ditolak karyawan, dan penugasan yang dipindah dalam 7 hari.
 
 export const PERIOD = { start: "2026-09-28", end: "2026-10-02", label: "28 Sep - 2 Okt 2026" };
@@ -78,7 +78,8 @@ export const MEMBERS: Member[] = [
     competencies: [{ id: "react", level: 2, source: "verifikasi" }, { id: "tailwind", level: 2, source: "riwayat" }, { id: "aksesibilitas", level: 1, source: "klaim" }] }),
   person({ id: "fikri", name: "Fikri Hidayatullah", role: "Pengembang frontend (magang)", availableHours: 20, weeklyLimit: 20,
     competencies: [{ id: "react", level: 1, source: "klaim" }, { id: "tailwind", level: 1, source: "klaim" }],
-    prefers: ["tailwind"] }),
+    prefers: ["tailwind"],
+    leaveRequests: [{ id: "CUTI-fikri-1", start: "2026-10-05", end: "2026-10-06", type: "izin", reason: "Ujian akhir semester di kampus.", requestedAt: "2026-09-28T08:10:00+07:00", manager: "menunggu", hr: "disetujui" }] }),
   // Mobile
   person({ id: "andre", name: "Andre Kurniawan", role: "Pengembang mobile senior", availableHours: 32, weeklyLimit: 40,
     competencies: [{ id: "flutter", level: 3, source: "verifikasi" }, { id: "integrasi-api", level: 2, source: "riwayat" }, { id: "backend-api", level: 1, source: "klaim" }],
@@ -89,7 +90,7 @@ export const MEMBERS: Member[] = [
   person({ id: "nadia", name: "Nadia Putri", role: "Desainer produk", availableHours: 32, weeklyLimit: 32,
     competencies: [{ id: "uiux", level: 3, source: "verifikasi" }, { id: "design-system", level: 3, source: "verifikasi" }, { id: "tailwind", level: 2, source: "klaim" }, { id: "react", level: 1, source: "klaim" }],
     prefers: ["design-system", "uiux"], avoids: ["sql"] }),
-  person({ id: "hana", name: "Hana Kurniawati", role: "Desainer UI (paruh waktu)", availableHours: 20, weeklyLimit: 20,
+  person({ id: "hana", name: "Hana Kurniawati", role: "Desainer UI (paruh waktu)", employmentType: "freelancer", availableHours: 20, weeklyLimit: 20,
     competencies: [{ id: "uiux", level: 2, source: "riwayat" }, { id: "design-system", level: 2, source: "klaim" }],
     prefers: ["uiux"], avoids: ["devops"] }),
   // Kualitas, infrastruktur, analisis
@@ -105,7 +106,7 @@ export const MEMBERS: Member[] = [
   person({ id: "irfan", name: "Irfan Maulana", role: "Analis sistem", availableHours: 32, weeklyLimit: 36,
     competencies: [{ id: "technical-writing", level: 2, source: "verifikasi" }, { id: "arsitektur-data", level: 1, source: "klaim" }],
     prefers: ["technical-writing"] }),
-  person({ id: "wulan", name: "Wulan Sari", role: "Penulis teknis (paruh waktu)", availableHours: 24, weeklyLimit: 24,
+  person({ id: "wulan", name: "Wulan Sari", role: "Penulis teknis (paruh waktu)", employmentType: "freelancer", availableHours: 24, weeklyLimit: 24,
     competencies: [{ id: "technical-writing", level: 3, source: "verifikasi" }, { id: "design-system", level: 1, source: "klaim" }],
     prefers: ["technical-writing"] }),
 ];
@@ -121,7 +122,7 @@ export const PROJECTS: Project[] = [
 const AUTH_DESC = "Tambahkan login dengan akun Google untuk staf klinik memakai OAuth2. Backend API perlu endpoint callback dan penyimpanan sesi yang aman. Sesi lama dari login email tetap berjalan sampai staf pindah. Perlu dicek juga apakah integrasi ke API kepegawaian klinik dibutuhkan.";
 const MODEL = { model: "llm-kecil@2026-09", prompt: "taskdna-v1" };
 
-type Quick = Pick<Task, "id" | "projectId" | "title" | "description" | "dueDate" | "status" | "remainingHours" | "createdAt" | "competencyIds"> & Partial<Pick<Task, "priority" | "assignments" | "actualHours" | "responseReason" | "dna" | "completedAt" | "qualityScore">>;
+type Quick = Pick<Task, "id" | "projectId" | "title" | "description" | "dueDate" | "status" | "remainingHours" | "createdAt" | "competencyIds"> & Partial<Pick<Task, "priority" | "assignments" | "actualHours" | "responseReason" | "dna" | "completedAt" | "qualityScore" | "dueTime" | "externalSource" | "extraTime" | "resultNote">>;
 const task = (t: Quick): Task => ({ priority: "normal", assignments: [], ...t });
 
 export const TASKS: Task[] = [
@@ -215,6 +216,7 @@ export const TASKS: Task[] = [
   // ---- Berjalan
   task({ id: "TGS-0131", projectId: "internal", title: "Refaktor modul kapasitas mingguan", description: "Pisahkan perhitungan kapasitas mingguan dari modul laporan dan pindahkan ke skema data tersendiri.", dueDate: "2026-09-30", priority: "tinggi", status: "berjalan", assignments: [{ memberId: "ayu", hours: 16 }], remainingHours: 12, createdAt: "2026-09-24T10:00:00+07:00", competencyIds: ["arsitektur-data", "sql"] }),
   task({ id: "TGS-0137", projectId: "klinik", title: "Migrasi skema antrean ke PostgreSQL 16", description: "Pindahkan tabel antrean dan sesi pengguna ke PostgreSQL 16 dengan skrip migrasi yang bisa diulang.", dueDate: "2026-10-01", status: "berjalan", assignments: [{ memberId: "ayu", hours: 12 }], remainingHours: 7, createdAt: "2026-09-25T09:30:00+07:00", competencyIds: ["sql", "backend-api"] }),
+  task({ id: "TGS-0174", projectId: "koperasi", title: "Dukungan rilis aplikasi koperasi (di luar PANTARA)", description: "Pendampingan rilis versi 2.3 yang dikelola di Trello pengurus koperasi; dicatat agar bebannya terhitung.", dueDate: "2026-10-01", dueTime: "15:00", status: "berjalan", assignments: [{ memberId: "fajar", hours: 4 }], remainingHours: 4, createdAt: "2026-09-28T08:00:00+07:00", competencyIds: ["devops"], externalSource: "Trello pengurus koperasi" }),
   task({ id: "TGS-0135", projectId: "koperasi", title: "Integrasi webhook notifikasi WhatsApp", description: "Kirim notifikasi jatuh tempo angsuran lewat webhook penyedia WhatsApp Business.", dueDate: "2026-10-02", status: "berjalan", assignments: [{ memberId: "bima", hours: 8 }], remainingHours: 5, createdAt: "2026-09-25T13:00:00+07:00", competencyIds: ["integrasi-api", "backend-api"] }),
   task({ id: "TGS-0133", projectId: "internal", title: "Optimasi query beban alokasi", description: "Kurangi waktu query beban alokasi per periode dengan indeks komposit.", dueDate: "2026-10-02", status: "berjalan", assignments: [{ memberId: "dimas", hours: 14 }], remainingHours: 8, createdAt: "2026-09-24T14:00:00+07:00", competencyIds: ["sql", "arsitektur-data"] }),
   task({ id: "TGS-0151", projectId: "batik", title: "Modul pembayaran Midtrans", description: "Checkout memakai Midtrans: virtual account, QRIS, dan pembaruan status lewat webhook.", dueDate: "2026-10-06", priority: "tinggi", status: "berjalan", assignments: [{ memberId: "teguh", hours: 20 }], remainingHours: 14, createdAt: "2026-09-22T09:00:00+07:00", competencyIds: ["laravel", "integrasi-api"] }),
@@ -230,7 +232,8 @@ export const TASKS: Task[] = [
   task({ id: "TGS-0160", projectId: "koperasi", title: "Integrasi API simpanan ke aplikasi mobile", description: "Saldo dan mutasi simpanan tampil di aplikasi mobile dari API koperasi.", dueDate: "2026-10-02", priority: "tinggi", status: "berjalan", assignments: [{ memberId: "andre", hours: 10 }], remainingHours: 8, createdAt: "2026-09-24T10:00:00+07:00", competencyIds: ["flutter", "integrasi-api"] }),
   task({ id: "TGS-0134", projectId: "koperasi", title: "Desain komponen form pengajuan pinjaman", description: "Rancang komponen form yang menyesuaikan jenis pinjaman dan token desain koperasi.", dueDate: "2026-10-01", status: "berjalan", assignments: [{ memberId: "nadia", hours: 16 }], remainingHours: 10, createdAt: "2026-09-24T09:00:00+07:00", competencyIds: ["design-system", "uiux"] }),
   task({ id: "TGS-0138", projectId: "klinik", title: "Revisi antarmuka jadwal dokter", description: "Revisi tata letak dan hierarki visual halaman jadwal dokter berdasarkan masukan klinik.", dueDate: "2026-10-02", status: "berjalan", assignments: [{ memberId: "hana", hours: 14 }], remainingHours: 9, createdAt: "2026-09-25T10:00:00+07:00", competencyIds: ["uiux", "design-system"] }),
-  task({ id: "TGS-0164", projectId: "klinik", title: "Uji regresi modul antrean", description: "Uji ulang alur ambil nomor, panggil, dan lewati antrean setelah migrasi database.", dueDate: "2026-10-01", status: "berjalan", assignments: [{ memberId: "gita", hours: 12 }], remainingHours: 8, createdAt: "2026-09-25T13:00:00+07:00", competencyIds: ["qa", "e2e"] }),
+  task({ id: "TGS-0164", projectId: "klinik", title: "Uji regresi modul antrean", description: "Uji ulang alur ambil nomor, panggil, dan lewati antrean setelah migrasi database.", dueDate: "2026-10-01", status: "berjalan", assignments: [{ memberId: "gita", hours: 12 }], remainingHours: 8, createdAt: "2026-09-25T13:00:00+07:00", competencyIds: ["qa", "e2e"],
+    extraTime: { memberId: "gita", hours: 3, reason: "Skenario regresi bertambah setelah skema antrean berubah, perlu uji ulang modul laporan.", requestedAt: "2026-09-29T08:40:00+07:00", status: "menunggu" } }),
   task({ id: "TGS-0136", projectId: "internal", title: "Pipeline CI/CD lingkungan staging", description: "Siapkan pipeline build, uji, dan deploy otomatis ke lingkungan staging.", dueDate: "2026-10-02", status: "berjalan", assignments: [{ memberId: "fajar", hours: 20 }], remainingHours: 11, createdAt: "2026-09-24T11:00:00+07:00", competencyIds: ["devops"] }),
   task({ id: "TGS-0140", projectId: "koperasi", title: "Analisis kebutuhan laporan simpan pinjam", description: "Petakan kebutuhan laporan bulanan simpan pinjam bersama pengurus koperasi.", dueDate: "2026-10-02", status: "berjalan", assignments: [{ memberId: "irfan", hours: 8 }], remainingHours: 5, createdAt: "2026-09-28T09:30:00+07:00", competencyIds: ["technical-writing", "arsitektur-data"] }),
   task({ id: "TGS-0165", projectId: "smk", title: "Spesifikasi alur seleksi siswa", description: "Dokumen aturan seleksi, kuota per jurusan, dan alur verifikasi berkas bersama panitia.", dueDate: "2026-10-08", status: "berjalan", assignments: [{ memberId: "irfan", hours: 12 }], remainingHours: 10, createdAt: "2026-09-25T09:00:00+07:00", competencyIds: ["technical-writing", "arsitektur-data"] }),

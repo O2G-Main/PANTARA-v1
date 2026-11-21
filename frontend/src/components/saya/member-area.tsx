@@ -4,15 +4,17 @@ import { Paged } from "@/components/ui/pager";
 import { DatePicker } from "@/components/ui/date-picker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
-import { CalendarRange, Check, CircleAlert, CircleCheck, Copy, Inbox, MessageSquareWarning, ShieldCheck, X } from "lucide-react";
+import { use, useState } from "react";
+import { CalendarOff, Check, CircleAlert, CircleCheck, Clock3, History, Inbox, MessageSquareWarning, ShieldCheck, X } from "lucide-react";
 import { CapacityBar, EmptyState, PageHeading, PriorityBadge, SectionTitle, StatusBadge } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
-import { api, ApiError, DATA_MODE, type AvailabilitySnapshot } from "@/lib/api";
+import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { useSession } from "@/lib/session";
-import type { Level, Member, Task } from "@/lib/demo/types";
+import type { LeaveRequest, LeaveType, Level, Member, Task } from "@/lib/demo/types";
+import { canRequestExtraTime } from "@/lib/engine/capacity";
+import { leaveError, leaveStatus } from "@/lib/engine/leave";
 import { allocatedHours, LEVEL_LABEL, rankCandidates } from "@/lib/engine/score";
 import { hours, shortDate } from "@/lib/format";
 
@@ -22,8 +24,9 @@ function useMemberId() {
 
 export function MyHome() {
   const memberId = useMemberId();
-  const { tasks, memberById, period, loading, dispatch } = useDemo();
+  const { tasks, memberById, period, now, loading, dispatch } = useDemo();
   const [progTask, setProgTask] = useState<Task | null>(null);
+  const [extraTask, setExtraTask] = useState<Task | null>(null);
   const [remHours, setRemHours] = useState("");
   const [actHours, setActHours] = useState("");
   const [complete, setComplete] = useState(false);
@@ -55,6 +58,7 @@ export function MyHome() {
   const mine = tasks.filter((t) => t.assignments.some((a) => a.memberId === me.id));
   const waiting = mine.filter((t) => t.status === "menunggu");
   const running = mine.filter((t) => t.status === "berjalan");
+  const done = mine.filter((t) => t.status === "selesai");
   const periodLabel = period?.label ?? PERIOD.label;
 
   const openProgress = (t: Task) => {
@@ -117,7 +121,7 @@ export function MyHome() {
           <section className="card">
             <SectionTitle
               title="Penugasan baru"
-              subtitle="Terima atau tolak dengan alasan. Manajer melihat jawabanmu."
+              subtitle={me.employmentType === "freelancer" ? "Terima atau tolak dengan alasan. Manajer melihat jawabanmu." : "Buka untuk menerima penugasan."}
               action={<Badge tone={waiting.length ? "warn" : "neutral"}>{waiting.length} menunggu</Badge>}
             />
             {waiting.length ? (
@@ -146,11 +150,21 @@ export function MyHome() {
                   <div>
                     <h4>{t.title}</h4>
                     <p>
-                      Tenggat {shortDate(t.dueDate)} · sisa {hours(t.remainingHours)}
+                      Tenggat {shortDate(t.dueDate)} {t.dueTime ?? "17:00"} · sisa {hours(t.remainingHours)}
                     </p>
+                    {t.extraTime && (
+                      <p className="small muted">
+                        Tambahan {hours(t.extraTime.hours)}: {EXTRA_LABEL[t.extraTime.status]}
+                      </p>
+                    )}
                   </div>
                   <div className="page-actions">
                     <StatusBadge status={t.status} />
+                    {canRequestExtraTime(t, now) && (
+                      <button type="button" className="row-link accent" onClick={() => setExtraTask(t)}>
+                        Minta tambahan waktu
+                      </button>
+                    )}
                     <button type="button" className="row-link" onClick={() => openProgress(t)}>
                       Perbarui progres
                     </button>
@@ -160,18 +174,32 @@ export function MyHome() {
             ) : (
               <p className="small muted">Belum ada tugas berjalan.</p>
             )}
+            {running.length > 0 && <p className="small muted spaced">Tombol tambahan waktu muncul saat tenggat tinggal 2 jam atau kurang.</p>}
+          </section>
+          <section className="card">
+            <SectionTitle title="Riwayat kerja saya" subtitle="Tugas yang sudah kamu selesaikan." />
+            {done.length ? (
+              done.map((t) => (
+                <div key={t.id} className="dna-row">
+                  <span className="with-icon">
+                    <Icon icon={History} size={14} />
+                    {t.title}
+                  </span>
+                  <span className="small muted">
+                    {shortDate(t.dueDate)}
+                    {t.actualHours !== undefined ? ` · ${hours(t.actualHours)}` : ""}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="small muted">Belum ada tugas selesai.</p>
+            )}
           </section>
         </div>
         <div className="stack">
           <section className="card">
             <SectionTitle title="Kapasitas saya" subtitle={periodLabel} />
             <CapacityBar allocated={allocatedHours(me.id, tasks)} available={me.availableHours} />
-            <div className="page-actions spaced">
-              <Link className="button secondary" href="/saya/ketersediaan">
-                <Icon icon={CalendarRange} size={16} />
-                Ubah ketersediaan
-              </Link>
-            </div>
           </section>
           <section className="card">
             <p className="small muted with-icon">
@@ -215,43 +243,82 @@ export function MyHome() {
           </form>
         </Modal>
       )}
+      {extraTask && (
+        <ExtraTimeModal
+          task={extraTask}
+          onClose={() => setExtraTask(null)}
+          onSubmit={(h, reason) => {
+            dispatch({
+              type: "updateTask",
+              id: extraTask.id,
+              patch: { extraTime: { memberId: me.id, hours: h, reason, requestedAt: new Date().toISOString(), status: "menunggu" } },
+            });
+            setExtraTask(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-export function MyAvailability() {
-  const memberId = useMemberId();
-  const { memberById, period, loading, dispatch } = useDemo();
-  const me = memberById(memberId);
-  const [availableDraft, setAvailable] = useState<string | null>(null);
-  const [limitDraft, setLimit] = useState<string | null>(null);
-  const [leaveDraft, setLeaveDraft] = useState<string[] | null>(null);
-  const available = availableDraft ?? String(me?.availableHours ?? 32);
-  const limit = limitDraft ?? String(me?.weeklyLimit ?? 36);
-  const leave = leaveDraft ?? me?.leaveDates ?? [];
-  const setLeave = (updater: (prev: string[]) => string[]) => setLeaveDraft((prev) => updater(prev ?? leave));
-  const [prevSnap, setPrevSnap] = useState<AvailabilitySnapshot | null>(null);
-  const [newLeave, setNewLeave] = useState("");
-  const [saved, setSaved] = useState(false);
+const EXTRA_LABEL = { menunggu: "menunggu persetujuan manajer", disetujui: "disetujui", ditolak: "tidak disetujui" } as const;
+
+function ExtraTimeModal({ task, onClose, onSubmit }: { task: Task; onClose: () => void; onSubmit: (hours: number, reason: string) => void }) {
+  const [extra, setExtra] = useState("2");
+  const [reason, setReason] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title="Minta tambahan waktu" onClose={onClose}>
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          const h = Number(extra.replace(",", "."));
+          if (!Number.isFinite(h) || h <= 0) return setError("Isi tambahan jam lebih dari 0.");
+          if (reason.trim().length < 10) return setError("Tulis alasan minimal 10 karakter supaya manajer bisa menilai.");
+          onSubmit(h, reason.trim());
+        }}
+      >
+        <p className="dialog-summary">
+          Tenggat &quot;{task.title}&quot; tetap. Jam estimasimu bertambah setelah manajer menyetujui, bila perlu dari kapasitas cadangan tim.
+        </p>
+        <label className="field">
+          <span className="field-label">Tambahan jam</span>
+          <input className="input" type="number" inputMode="decimal" min="0.5" step="0.5" value={extra} onChange={(e) => { setExtra(e.target.value); setError(""); }} />
+        </label>
+        <label className="field spaced">
+          <span className="field-label">Alasan (wajib)</span>
+          <textarea
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setError(""); }}
+            placeholder="Skenario uji bertambah setelah perubahan skema, perlu 2 jam lagi."
+          />
+        </label>
+        {error && <p className="field-error spaced" role="alert">{error}</p>}
+        {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+        <div className="dialog-actions">
+          <button type="button" className="button secondary" onClick={onClose}>
+            Batal
+          </button>
+          <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
+            <Icon icon={Clock3} size={16} />
+            Kirim permintaan
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
-  useEffect(() => {
-    if (DATA_MODE !== "api" || !memberId) return;
-    let active = true;
-    api.self
-      .overview()
-      .then((res) => {
-        if (active && res.previousAvailability) setPrevSnap(res.previousAvailability);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [memberId]);
+const LEAVE_TYPE: Record<LeaveType, string> = { tahunan: "Cuti tahunan", sakit: "Sakit", izin: "Izin" };
+const APPROVAL_TONE = { menunggu: "warn", disetujui: "ok", ditolak: "crit" } as const;
 
-  if (loading && !me) {
-    return (
+function useMe() {
+  const memberId = useMemberId();
+  const { memberById, loading } = useDemo();
+  const me = memberById(memberId);
+  const fallback =
+    loading && !me ? (
       <section className="card">
         <div className="answer-skeleton" aria-busy="true">
           <div />
@@ -259,143 +326,168 @@ export function MyAvailability() {
           <div />
         </div>
       </section>
-    );
-  }
-  if (!me) return <EmptyState icon={CircleAlert} title="Profil tidak ditemukan" text="Profil anggota belum tersedia." />;
+    ) : !me ? (
+      <EmptyState icon={CircleAlert} title="Profil tidak ditemukan" text="Profil anggota belum tersedia." />
+    ) : null;
+  return { me, fallback };
+}
 
-  const periodLabel = period?.label ?? PERIOD.label;
-  const periodStart = period?.start ?? PERIOD.start;
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy || !me) return;
-    const a = Number(available),
-      l = Number(limit);
-    if (!Number.isFinite(a) || a < 0 || a > 60) return setError("Jam tersedia antara 0 dan 60.");
-    if (!Number.isFinite(l) || l < a) return setError("Batas kerja tidak boleh lebih kecil dari jam tersedia.");
-
-    if (DATA_MODE === "api") {
-      setBusy(true);
-      try {
-        const res = await api.self.updateAvailability({ availableHours: a, weeklyLimit: l, leaveDates: leave });
-        dispatch({ type: "upsertMember", member: res.member });
-        setSaved(true);
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Gagal menyimpan ketersediaan.");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    dispatch({ type: "upsertMember", member: { ...me, availableHours: a, weeklyLimit: l, leaveDates: leave } });
-    setSaved(true);
-  }
-
-  const copyFromPrevious = () => {
-    if (prevSnap) {
-      setAvailable(String(prevSnap.availableHours ?? 32));
-      setLimit(String(prevSnap.weeklyLimit));
-    } else {
-      setAvailable("32");
-      setLimit("36");
-    }
-    setSaved(false);
-    setError("");
-  };
+export function MyAvailability() {
+  const { period } = useDemo();
+  const { me, fallback } = useMe();
+  if (!me) return fallback;
+  const pending = (me.leaveRequests ?? []).filter((r) => leaveStatus(r) === "menunggu").length;
 
   return (
     <div className="page-enter">
-      <PageHeading title="Ketersediaan saya" subtitle={`Isi jam tersedia dan cuti untuk periode ${periodLabel}.`} />
-      <form className="card form-card" onSubmit={(e) => void save(e)} noValidate>
-        {saved && (
-          <div className="decision-banner" role="status">
-            <Icon icon={CircleCheck} />
-            <span>
-              <strong>Ketersediaan tersimpan</strong>
-              <span>Rekomendasi berikutnya memakai data ini.</span>
-            </span>
+      <PageHeading
+        title="Ketersediaan saya"
+        subtitle={`Jam kerja dan cuti periode ${period?.label ?? PERIOD.label}. Jam tersedia dan batas mingguan diatur HR.`}
+        actions={
+          <Link className="button secondary" href="/saya/cuti">
+            <Icon icon={CalendarOff} size={16} />
+            Ajukan cuti
+          </Link>
+        }
+      />
+      <section className="card">
+        <SectionTitle title="Ketersediaan periode ini" subtitle="Hanya baca. Hubungi HR bila ada yang perlu diubah." />
+        <div className="dna-row">
+          <span className="muted small">Jam tersedia</span>
+          <strong>{me.availableHours === null ? "Belum diisi HR" : hours(me.availableHours)}</strong>
+        </div>
+        <div className="dna-row">
+          <span className="muted small">Batas kerja mingguan</span>
+          <strong>{hours(me.weeklyLimit)}</strong>
+        </div>
+        <div className="dna-row">
+          <span className="muted small">Cuti terjadwal</span>
+          <span className="chips">
+            {me.leaveDates.length ? me.leaveDates.map((d) => <span key={d} className="chip">{shortDate(d)}</span>) : <span className="chip">Tidak ada cuti</span>}
+          </span>
+        </div>
+        {pending > 0 && (
+          <div className="dna-row">
+            <span className="muted small">Pengajuan cuti</span>
+            <Link className="row-link" href="/saya/cuti">
+              {pending} menunggu persetujuan
+            </Link>
           </div>
         )}
-        <div className="form-grid">
-          <label className="field">
-            <span className="field-label">Jam tersedia periode ini</span>
-            <input
-              className="input"
-              type="number"
-              value={available}
-              onChange={(e) => {
-                setAvailable(e.target.value);
-                setSaved(false);
-                setError("");
-              }}
-            />
-            <span className="field-hint">Jam yang bisa dipakai untuk tugas proyek.</span>
-          </label>
-          <label className="field">
-            <span className="field-label">Batas kerja mingguan</span>
-            <input
-              className="input"
-              type="number"
-              value={limit}
-              onChange={(e) => {
-                setLimit(e.target.value);
-                setSaved(false);
-                setError("");
-              }}
-            />
-            <span className="field-hint">Rekomendasi tidak akan melewati batas ini.</span>
-          </label>
-          <div className="field full">
-            <span className="field-label">Tanggal cuti</span>
-            <div className="toolbar">
-              <DatePicker min={periodStart} value={newLeave} onChange={setNewLeave} aria-label="Tambah tanggal cuti" />
-              <button
-                type="button"
-                className="button secondary"
-                disabled={!newLeave}
-                onClick={() => {
-                  setLeave((l) => [...new Set([...l, newLeave])].sort());
-                  setNewLeave("");
-                  setSaved(false);
-                }}
-              >
-                Tambah cuti
-              </button>
+      </section>
+    </div>
+  );
+}
+
+export function MyLeave() {
+  const { today, dispatch } = useDemo();
+  const { me, fallback } = useMe();
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [type, setType] = useState<LeaveType>("tahunan");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+  if (!me) return fallback;
+  const requests = me.leaveRequests ?? [];
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!me) return;
+    const problem = leaveError(start, end, reason, today);
+    if (problem) return setError(problem);
+    const req: LeaveRequest = {
+      id: `CUTI-${me.id}-${requests.length + 1}`,
+      start,
+      end,
+      type,
+      reason: reason.trim(),
+      requestedAt: today,
+      manager: "menunggu",
+      hr: "menunggu",
+    };
+    dispatch({ type: "upsertMember", member: { ...me, leaveRequests: [req, ...requests] } });
+    setStart("");
+    setEnd("");
+    setReason("");
+    setSent(true);
+  }
+
+  return (
+    <div className="page-enter">
+      <PageHeading title="Pengajuan cuti" subtitle="Cuti berlaku setelah disetujui manajer dan HR. Hari kerjanya lalu dikurangi dari jam tersedia." />
+      <div className="split-even">
+        <form className="card" onSubmit={submit} noValidate>
+          <SectionTitle title="Ajukan cuti" subtitle="Isi rentang tanggal, jenis, dan alasan." />
+          {sent && (
+            <div className="decision-banner" role="status">
+              <Icon icon={CircleCheck} />
+              <span>
+                <strong>Pengajuan terkirim</strong>
+                <span>Menunggu persetujuan manajer dan HR.</span>
+              </span>
             </div>
-            <div className="chips">
-              {leave.length ? (
-                leave.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    className="chip"
-                    onClick={() => setLeave((l) => l.filter((x) => x !== d))}
-                    aria-label={`Hapus cuti ${shortDate(d)}`}
-                  >
-                    {shortDate(d)} <Icon icon={X} size={12} />
-                  </button>
-                ))
-              ) : (
-                <span className="chip">Tidak ada cuti</span>
-              )}
+          )}
+          <div className="form-grid">
+            <div className="field">
+              <span className="field-label">Mulai</span>
+              <DatePicker min={today} value={start} onChange={(v) => { setStart(v); setError(""); setSent(false); }} aria-label="Tanggal mulai cuti" />
             </div>
+            <div className="field">
+              <span className="field-label">Selesai</span>
+              <DatePicker min={start || today} value={end} onChange={(v) => { setEnd(v); setError(""); setSent(false); }} aria-label="Tanggal selesai cuti" />
+            </div>
+            <label className="field full">
+              <span className="field-label">Jenis cuti</span>
+              <select className="select" value={type} onChange={(e) => setType(e.target.value as LeaveType)}>
+                {(Object.keys(LEAVE_TYPE) as LeaveType[]).map((t) => (
+                  <option key={t} value={t}>
+                    {LEAVE_TYPE[t]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field full">
+              <span className="field-label">Alasan (wajib)</span>
+              <textarea value={reason} onChange={(e) => { setReason(e.target.value); setError(""); setSent(false); }} placeholder="Menghadiri pernikahan saudara di luar kota." />
+            </label>
           </div>
-        </div>
-        {error && (
-          <p className="field-error spaced" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="form-actions">
-          <button type="button" className="button secondary" onClick={copyFromPrevious}>
-            <Icon icon={Copy} size={16} />
-            Salin dari periode lalu
-          </button>
-          <button type="submit" className="button primary" disabled={busy}>
-            {busy ? "Menyimpan..." : "Simpan ketersediaan"}
-          </button>
-        </div>
-      </form>
+          {error && (
+            <p className="field-error spaced" role="alert">
+              {error}
+            </p>
+          )}
+          {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+          <div className="form-actions">
+            <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
+              <Icon icon={CalendarOff} size={16} />
+              Ajukan cuti
+            </button>
+          </div>
+        </form>
+        <section className="card">
+          <SectionTitle title="Riwayat pengajuan" subtitle="Status persetujuan manajer dan HR." />
+          {requests.length ? (
+            requests.map((r) => (
+              <div key={r.id} className="dna-row">
+                <span>
+                  <strong>
+                    {LEAVE_TYPE[r.type]} · {shortDate(r.start)}
+                    {r.end !== r.start ? ` - ${shortDate(r.end)}` : ""}
+                  </strong>
+                  <span className="table-sub">{r.reason}</span>
+                  <span className="table-sub">
+                    Manajer: {r.manager} · HR: {r.hr}
+                  </span>
+                </span>
+                <Badge tone={APPROVAL_TONE[leaveStatus(r)]}>{leaveStatus(r)}</Badge>
+              </div>
+            ))
+          ) : (
+            <p className="small muted">Belum ada pengajuan cuti.</p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -439,6 +531,8 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
   }
 
   const mine = task.assignments.find((a) => a.memberId === memberId);
+  // CORPORATE-FIRST: karyawan tidak menolak penugasan (pakai tambahan waktu); freelancer tetap boleh menolak.
+  const canReject = me?.employmentType === "freelancer";
   const why = rankCandidates(
     { ...task, status: "belum", assignments: [] },
     members,
@@ -467,7 +561,7 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
     router.push("/saya");
   };
 
-  const isFreelancer = DATA_MODE === "mock" && me?.employmentType === "freelancer";
+  const isFreelancer = DATA_MODE === "mock" && canReject;
 
   const reject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -505,10 +599,12 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
         actions={
           task.status === "menunggu" && mine ? (
             <>
-              <button className="button secondary" disabled={busy} onClick={() => setRejecting(true)}>
-                <Icon icon={X} size={16} />
-                {isFreelancer ? "Minta perubahan" : "Tolak dengan alasan"}
-              </button>
+              {canReject && (
+                <button className="button secondary" disabled={busy} onClick={() => setRejecting(true)}>
+                  <Icon icon={X} size={16} />
+                  {isFreelancer ? "Minta perubahan" : "Tolak dengan alasan"}
+                </button>
+              )}
               <button className="button primary" disabled={busy} onClick={() => void accept()}>
                 <Icon icon={Check} />
                 {busy ? "Memproses..." : "Terima penugasan"}
@@ -577,7 +673,10 @@ export function IncomingAssignment({ params }: { params: Promise<{ id: string }>
           )}
         </section>
       </div>
-      {rejecting && (
+      {task.status === "menunggu" && mine && !canReject && (
+        <p className="small muted spaced">Bila jam kerja ternyata kurang, minta tambahan waktu dari Beranda saya saat tenggat sudah dekat.</p>
+      )}
+      {rejecting && canReject && (
         <Modal title={isFreelancer ? "Minta perubahan" : "Tolak penugasan"} onClose={() => setRejecting(false)}>
           <form onSubmit={(e) => void reject(e)}>
             <p className="dialog-summary">{isFreelancer ? "Jelaskan perubahan waktu atau beban yang kamu perlukan. Manajer akan meninjau permintaanmu." : "Tugas kembali ke manajer untuk dicarikan kandidat lain. Alasanmu ditampilkan di detail tugas."}</p>

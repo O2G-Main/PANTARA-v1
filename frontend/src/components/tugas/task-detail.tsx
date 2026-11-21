@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { CalendarClock, CircleAlert, CircleCheck, ClipboardCheck, FolderKanban, History, Pencil, RotateCcw, Timer, Trash2, UserRoundSearch } from "lucide-react";
+import { CalendarClock, CircleAlert, CircleCheck, ClipboardCheck, Clock3, ExternalLink, FolderKanban, History, NotebookPen, Pencil, RotateCcw, Timer, Trash2, UserRoundSearch } from "lucide-react";
 import { EmptyState, PageHeading, Person, PriorityBadge, SectionTitle, StatusBadge, statusLabel } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
 import { DatePicker } from "@/components/ui/date-picker";
-import { api, ApiError, DATA_MODE } from "@/lib/api";
+import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
 import { REASON_LABEL } from "@/lib/demo/reasons";
 import { useDemo } from "@/lib/demo/store";
 import type { Priority, TaskStatus } from "@/lib/demo/types";
+import { decideExtraTime } from "@/lib/engine/capacity";
 import { LEVEL_LABEL, PRESETS } from "@/lib/engine/score";
 import { date, hours, minutes, shortDate, time } from "@/lib/format";
 
@@ -29,6 +30,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
   const [actualError, setActualError] = useState("");
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   const task = taskById(id);
   if (loading && !task) return <section className="card"><div className="answer-skeleton" aria-busy="true"><div /><div /><div /></div></section>;
@@ -239,11 +241,33 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
         </div>
       )}
       {task.changeRequest?.status === "pending" && <div className="decision-banner warn"><span><strong>Permintaan perubahan freelancer</strong><span>{memberById(task.changeRequest.memberId)?.name ?? "Anggota"}: {task.changeRequest.reason}</span><button className="button" type="button" onClick={() => dispatch({ type: "updateTask", id, patch: { changeRequest: { ...task.changeRequest!, status: "reviewed" } } })}>Tandai sudah ditinjau</button></span></div>}
+      {task.extraTime?.status === "menunggu" && (
+        <div className="decision-banner warn" role="status">
+          <Icon icon={Clock3} />
+          <span>
+            <strong>
+              {memberById(task.extraTime.memberId)?.name ?? "Anggota"} minta tambahan {hours(task.extraTime.hours)}
+            </strong>
+            <span>
+              {task.extraTime.reason} Tenggat tetap {shortDate(task.dueDate)} {task.dueTime ?? "17:00"}; bila disetujui, sisa estimasi dan jam penugasannya bertambah.
+              {AWAITING_BACKEND ? ` ${AWAITING_BACKEND_NOTE}` : ""}
+            </span>
+          </span>
+          <span className="page-actions">
+            <button type="button" className="button secondary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertTask", task: decideExtraTime(task, false) })}>
+              Tolak
+            </button>
+            <button type="button" className="button primary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertTask", task: decideExtraTime(task, true) })}>
+              Setujui
+            </button>
+          </span>
+        </div>
+      )}
       {task.status === "belum" && task.responseReason && (
         <div className="decision-banner warn">
           <Icon icon={CircleAlert} />
           <span>
-            <strong>Penugasan sebelumnya ditolak karyawan</strong>
+            <strong>Penugasan sebelumnya ditolak freelancer</strong>
             <span>{task.responseReason}</span>
           </span>
         </div>
@@ -277,6 +301,47 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
               </p>
             )}
           </section>
+          {task.status === "selesai" && (
+            <section className="card">
+              <SectionTitle
+                title="Catatan hasil"
+                subtitle="Catatan teks dari manajer. Tanpa skor dan tidak dipakai rekomendasi."
+                action={
+                  note === null ? (
+                    <button type="button" className="row-link" onClick={() => setNote(task.resultNote ?? "")}>
+                      <Icon icon={NotebookPen} size={14} />
+                      {task.resultNote ? "Ubah" : "Tulis catatan"}
+                    </button>
+                  ) : undefined
+                }
+              />
+              {note === null ? (
+                <p className="small muted">{task.resultNote || "Belum ada catatan hasil."}</p>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    dispatch({ type: "updateTask", id, patch: { resultNote: note.trim() || undefined } });
+                    setNote(null);
+                  }}
+                >
+                  <label className="field">
+                    <span className="field-label">Catatan hasil pekerjaan</span>
+                    <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Fitur dirilis ke staging, klien minta revisi kecil di tampilan laporan." />
+                  </label>
+                  {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
+                  <div className="dialog-actions">
+                    <button type="button" className="button secondary" onClick={() => setNote(null)}>
+                      Batal
+                    </button>
+                    <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
+                      Simpan catatan
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
+          )}
           <section className="card">
             <SectionTitle title="Riwayat keputusan" subtitle="Tercatat dan tidak bisa diubah." />
             {log.length ? (
@@ -317,8 +382,30 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
               <Icon icon={CalendarClock} size={13} />
               Tenggat
             </span>
-            <strong>{shortDate(task.dueDate)}</strong>
+            <strong>
+              {shortDate(task.dueDate)} {task.dueTime ?? "17:00"}
+            </strong>
           </div>
+          {task.externalSource && (
+            <div className="dna-row">
+              <span className="muted small with-icon">
+                <Icon icon={ExternalLink} size={13} />
+                Dikelola di
+              </span>
+              <strong>{task.externalSource}</strong>
+            </div>
+          )}
+          {task.extraTime && task.extraTime.status !== "menunggu" && (
+            <div className="dna-row">
+              <span className="muted small with-icon">
+                <Icon icon={Clock3} size={13} />
+                Tambahan waktu
+              </span>
+              <strong>
+                {hours(task.extraTime.hours)} · {task.extraTime.status}
+              </strong>
+            </div>
+          )}
           <div className="dna-row">
             <span className="muted small with-icon">
               <Icon icon={ClipboardCheck} size={13} />
