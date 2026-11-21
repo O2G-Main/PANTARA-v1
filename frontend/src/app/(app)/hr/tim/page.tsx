@@ -7,7 +7,7 @@ import { PageHeading, Person } from "@/components/app/parts";
 import { AddDivisionMembers } from "@/components/hr/add-members";
 import { AvatarGroup } from "@/components/ui/avatar";
 import { Icon, Modal } from "@/components/ui";
-import { DATA_MODE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { useDemo } from "@/lib/demo/store";
 
 export default function HrTeams() {
@@ -17,6 +17,7 @@ export default function HrTeams() {
   const [previous, setPrevious] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const groups = new Map<string, typeof members>();
 
   for (const division of savedDivisions ?? []) groups.set(division, []);
@@ -32,8 +33,9 @@ export default function HrTeams() {
     setDialog(division ? "edit" : "add");
   }
 
-  function saveDivision(event: React.FormEvent<HTMLFormElement>) {
+  async function saveDivision(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const trimmed = name.trim();
     if (!trimmed) {
       setError("Isi nama divisi.");
@@ -41,6 +43,24 @@ export default function HrTeams() {
     }
     if ([...groups.keys()].some((item) => item !== previous && item.toLocaleLowerCase("id-ID") === trimmed.toLocaleLowerCase("id-ID"))) {
       setError("Nama divisi sudah digunakan.");
+      return;
+    }
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        if (dialog === "edit") {
+          await api.hr.renameDivision(previous, trimmed);
+        } else {
+          await api.hr.createDivision(trimmed);
+        }
+        dispatch({ type: "saveDivision", name: trimmed, previous: dialog === "edit" ? previous : undefined });
+        setDialog(null);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal menyimpan divisi.");
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     dispatch({ type: "saveDivision", name: trimmed, previous: dialog === "edit" ? previous : undefined });
@@ -51,7 +71,7 @@ export default function HrTeams() {
     <div className="page-enter">
       <PageHeading title="Tim & divisi" subtitle="Lihat anggota dan susunan tim di setiap divisi." actions={<>
         <Link className="button" href="/hr/anggota">Kelola anggota</Link>
-        {DATA_MODE === "mock" && <button className="button primary" type="button" onClick={() => openDialog()}><Icon icon={Plus} />Tambah divisi</button>}
+        <button className="button primary" type="button" onClick={() => openDialog()}><Icon icon={Plus} />Tambah divisi</button>
       </>} />
       {groups.size === 0 ? (
         <section className="card"><p>Belum ada divisi. Tambahkan divisi untuk menyusun anggota.</p></section>
@@ -72,7 +92,7 @@ export default function HrTeams() {
                   <Icon icon={ChevronDown} size={18} className="hr-building-chevron" />
                 </summary>
                 <div className="hr-building-content">
-                  {division && DATA_MODE === "mock" && <div className="hr-team toolbar"><button className="button primary" type="button" onClick={() => setMemberDivision(division)}><Icon icon={Plus} size={16} />Tambah anggota</button><button className="button" type="button" onClick={() => openDialog(division)}><Icon icon={Pencil} size={16} />Edit divisi</button></div>}
+                  {division && <div className="hr-team toolbar"><button className="button primary" type="button" onClick={() => setMemberDivision(division)}><Icon icon={Plus} size={16} />Tambah anggota</button><button className="button" type="button" onClick={() => openDialog(division)}><Icon icon={Pencil} size={16} />Edit divisi</button></div>}
                   {!people.length && <p className="muted hr-team">Belum ada anggota. Tambahkan divisi pada profil anggota untuk menempatkannya di sini.</p>}
                   {[...teams].map(([team, teamMembers]) => (
                     <section className="hr-team" key={team}>
@@ -88,11 +108,11 @@ export default function HrTeams() {
       )}
       {memberDivision && <AddDivisionMembers division={memberDivision} onClose={() => setMemberDivision(null)} />}
       {dialog && <Modal title={dialog === "add" ? "Tambah divisi" : "Edit divisi"} onClose={() => setDialog(null)}>
-        <form onSubmit={saveDivision}>
+        <form onSubmit={(e) => void saveDivision(e)}>
           <label className="field"><span className="field-label">Nama divisi</span><input className="input" autoFocus maxLength={100} value={name} onChange={(event) => { setName(event.target.value); setError(""); }} aria-invalid={!!error} aria-describedby={error ? "division-error" : undefined} /></label>
           {dialog === "edit" && <p className="muted spaced">Nama divisi pada profil anggota akan ikut diperbarui.</p>}
           {error && <p id="division-error" role="alert" className="field-error spaced">{error}</p>}
-          <div className="toolbar spaced"><button className="button" type="button" onClick={() => setDialog(null)}>Batal</button><button className="button primary" type="submit">Simpan divisi</button></div>
+          <div className="toolbar spaced"><button className="button" type="button" onClick={() => setDialog(null)}>Batal</button><button className="button primary" type="submit" disabled={busy}>{busy ? "Menyimpan..." : "Simpan divisi"}</button></div>
         </form>
       </Modal>}
     </div>

@@ -43,7 +43,7 @@ export interface Member {
   /** URL foto profil; kosong = belum diunggah (tampil inisial). */
   photo?: string;
   /** Peran akses ruang kerja. */
-  access: "admin" | "manajer" | "anggota";
+  access: "admin" | "manajer" | "anggota" | "hr";
   isActive?: boolean;
   leaveRequests?: LeaveRequest[];
 }

@@ -7,7 +7,7 @@ import { CalendarClock, CircleAlert, CircleCheck, ClipboardCheck, Clock3, Extern
 import { EmptyState, PageHeading, Person, PriorityBadge, SectionTitle, StatusBadge, statusLabel } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
 import { DatePicker } from "@/components/ui/date-picker";
-import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { REASON_LABEL } from "@/lib/demo/reasons";
 import { useDemo } from "@/lib/demo/store";
 import type { Priority, TaskStatus } from "@/lib/demo/types";
@@ -24,7 +24,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
   const { taskById, projects, memberById, projectById, decisions, names, today, loading, dispatch } = useDemo();
   const [finishing, setFinishing] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", description: "", projectId: "", dueDate: "", priority: "normal" as Priority });
+  const [editForm, setEditForm] = useState({ title: "", description: "", projectId: "", dueDate: "", dueTime: "17:00", priority: "normal" as Priority });
   const [actual, setActual] = useState("");
   const [quality, setQuality] = useState("");
   const [actualError, setActualError] = useState("");
@@ -61,6 +61,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
       description: task.description,
       projectId: task.projectId,
       dueDate: task.dueDate,
+      dueTime: task.dueTime ?? "17:00",
       priority: task.priority,
     });
     setActionError("");
@@ -90,10 +91,11 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
   const handleSetStatus = async (status: TaskStatus, actualHours?: number) => {
     if (busy) return;
     setActionError("");
+    const parsedQuality = quality.trim() === "" ? undefined : Number(quality);
     if (DATA_MODE === "api") {
       setBusy(true);
       try {
-        const res = await api.tasks.updateStatus(id, { status, actualHours });
+        const res = await api.tasks.updateStatus(id, { status, actualHours, qualityScore: parsedQuality });
         dispatch({ type: "upsertTask", task: res.task });
         setFinishing(false);
       } catch (err) {
@@ -105,9 +107,67 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
       }
       return;
     }
-    if (actualHours !== undefined) dispatch({ type: "updateTask", id, patch: { actualHours, completedAt: today, qualityScore: quality.trim() === "" ? undefined : Number(quality) } });
+    if (actualHours !== undefined) dispatch({ type: "updateTask", id, patch: { actualHours, completedAt: today, qualityScore: parsedQuality } });
     dispatch({ type: "setStatus", id, status });
     setFinishing(false);
+  };
+
+  const handleExtraTimeDecision = async (approve: boolean) => {
+    if (busy || !task) return;
+    setActionError("");
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      try {
+        const res = await api.tasks.decideExtraTime(id, approve);
+        dispatch({ type: "upsertTask", task: res.task });
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : "Gagal memproses keputusan tambahan waktu.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    dispatch({ type: "upsertTask", task: decideExtraTime(task, approve) });
+  };
+
+  const handleReviewChange = async () => {
+    if (busy || !task?.changeRequest) return;
+    setActionError("");
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      try {
+        const res = await api.tasks.reviewChangeRequest(id);
+        dispatch({ type: "upsertTask", task: res.task });
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : "Gagal menandai permintaan perubahan.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    dispatch({ type: "updateTask", id, patch: { changeRequest: { ...task.changeRequest, status: "reviewed" } } });
+  };
+
+  const handleSaveNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy || note === null) return;
+    const trimmed = note.trim();
+    setActionError("");
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      try {
+        const res = await api.tasks.updateResultNote(id, trimmed);
+        dispatch({ type: "upsertTask", task: res.task });
+        setNote(null);
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : "Gagal menyimpan catatan hasil.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    dispatch({ type: "updateTask", id, patch: { resultNote: trimmed || undefined } });
+    setNote(null);
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
@@ -122,6 +182,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
           description: editForm.description.trim(),
           projectId: editForm.projectId,
           dueDate: editForm.dueDate,
+          dueTime: editForm.dueTime || "17:00",
           priority: editForm.priority,
         });
         dispatch({ type: "upsertTask", task: res.task });
@@ -141,6 +202,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
         description: editForm.description.trim(),
         projectId: editForm.projectId,
         dueDate: editForm.dueDate,
+        dueTime: editForm.dueTime || "17:00",
         priority: editForm.priority,
       },
     });
@@ -240,7 +302,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
           </Link>
         </div>
       )}
-      {task.changeRequest?.status === "pending" && <div className="decision-banner warn"><span><strong>Permintaan perubahan freelancer</strong><span>{memberById(task.changeRequest.memberId)?.name ?? "Anggota"}: {task.changeRequest.reason}</span><button className="button" type="button" onClick={() => dispatch({ type: "updateTask", id, patch: { changeRequest: { ...task.changeRequest!, status: "reviewed" } } })}>Tandai sudah ditinjau</button></span></div>}
+      {task.changeRequest?.status === "pending" && <div className="decision-banner warn"><span><strong>Permintaan perubahan freelancer</strong><span>{memberById(task.changeRequest.memberId)?.name ?? "Anggota"}: {task.changeRequest.reason}</span><button className="button" type="button" disabled={busy} onClick={() => void handleReviewChange()}>Tandai sudah ditinjau</button></span></div>}
       {task.extraTime?.status === "menunggu" && (
         <div className="decision-banner warn" role="status">
           <Icon icon={Clock3} />
@@ -250,14 +312,13 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
             </strong>
             <span>
               {task.extraTime.reason} Tenggat tetap {shortDate(task.dueDate)} {task.dueTime ?? "17:00"}; bila disetujui, sisa estimasi dan jam penugasannya bertambah.
-              {AWAITING_BACKEND ? ` ${AWAITING_BACKEND_NOTE}` : ""}
             </span>
           </span>
           <span className="page-actions">
-            <button type="button" className="button secondary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertTask", task: decideExtraTime(task, false) })}>
+            <button type="button" className="button secondary" disabled={busy} onClick={() => void handleExtraTimeDecision(false)}>
               Tolak
             </button>
-            <button type="button" className="button primary" disabled={AWAITING_BACKEND} onClick={() => dispatch({ type: "upsertTask", task: decideExtraTime(task, true) })}>
+            <button type="button" className="button primary" disabled={busy} onClick={() => void handleExtraTimeDecision(true)}>
               Setujui
             </button>
           </span>
@@ -318,24 +379,17 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
               {note === null ? (
                 <p className="small muted">{task.resultNote || "Belum ada catatan hasil."}</p>
               ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    dispatch({ type: "updateTask", id, patch: { resultNote: note.trim() || undefined } });
-                    setNote(null);
-                  }}
-                >
+                <form onSubmit={(e) => void handleSaveNote(e)}>
                   <label className="field">
                     <span className="field-label">Catatan hasil pekerjaan</span>
                     <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Fitur dirilis ke staging, klien minta revisi kecil di tampilan laporan." />
                   </label>
-                  {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
                   <div className="dialog-actions">
                     <button type="button" className="button secondary" onClick={() => setNote(null)}>
                       Batal
                     </button>
-                    <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
-                      Simpan catatan
+                    <button type="submit" className="button primary" disabled={busy}>
+                      {busy ? "Menyimpan..." : "Simpan catatan"}
                     </button>
                   </div>
                 </form>
@@ -487,7 +541,7 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
                 aria-describedby={actualError ? "actual-error" : undefined}
               />
             </label>
-            {DATA_MODE === "mock" && <label className="field spaced"><span className="field-label">Kualitas hasil (0–100, opsional)</span><input className="input" type="number" min="0" max="100" value={quality} onChange={(event) => setQuality(event.target.value)} /></label>}
+            <label className="field spaced"><span className="field-label">Kualitas hasil (0–100, opsional)</span><input className="input" type="number" min="0" max="100" value={quality} onChange={(event) => setQuality(event.target.value)} /></label>
             {actualError && (
               <p id="actual-error" className="field-error spaced" role="alert">
                 {actualError}
@@ -528,6 +582,10 @@ export function TaskDetail({ params }: { params: Promise<{ id: string }> }) {
             <label className="field spaced">
               <span className="field-label">Tenggat</span>
               <DatePicker min={today} value={editForm.dueDate} onChange={(v) => setEditForm((f) => ({ ...f, dueDate: v }))} />
+            </label>
+            <label className="field spaced">
+              <span className="field-label">Jam tenggat (WIB)</span>
+              <input className="input" type="time" value={editForm.dueTime} onChange={(e) => setEditForm((f) => ({ ...f, dueTime: e.target.value }))} />
             </label>
             <fieldset className="field spaced">
               <legend className="field-label">Prioritas</legend>

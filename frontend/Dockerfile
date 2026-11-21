@@ -1,6 +1,8 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_DATA_MODE=api
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_DATA_MODE=${NEXT_PUBLIC_DATA_MODE}
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

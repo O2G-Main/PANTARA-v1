@@ -269,7 +269,7 @@ export function InviteForm({ params }: { params: Promise<{ token: string }> }) {
     setDone(true);
   };
 
-  const roleLabel = preview?.accessRole === "manajer" ? "manajer" : preview?.accessRole === "admin" ? "admin" : "anggota";
+  const roleLabel = preview?.accessRole === "manajer" ? "manajer" : preview?.accessRole === "admin" ? "admin" : preview?.accessRole === "hr" ? "HR" : "anggota";
 
   return (
     <form noValidate onSubmit={submit}>

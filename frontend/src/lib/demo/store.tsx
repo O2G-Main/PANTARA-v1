@@ -268,6 +268,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           state: {
             tasks: boot.tasks ?? [],
             members: boot.members ?? [],
+            divisions: boot.divisions ?? [],
+            hrSettings: boot.hrSettings,
+            hrRequests: boot.hrRequests ?? [],
+            performanceConfig: boot.performanceConfig,
+            performanceReviews: boot.performanceReviews ?? [],
             projects: boot.projects ?? [],
             competencies: boot.competencies ?? [],
             decisions: boot.decisions ?? [],

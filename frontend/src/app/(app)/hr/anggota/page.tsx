@@ -8,6 +8,7 @@ import { useState } from "react";
 import { FileSpreadsheet, Plus, Search, Upload } from "lucide-react";
 import { PageHeading, Person } from "@/components/app/parts";
 import { Icon, Modal } from "@/components/ui";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { useDemo } from "@/lib/demo/store";
 import type { Member } from "@/lib/demo/types";
 
@@ -18,7 +19,9 @@ export default function HrMembers() {
   const query = params.get("q") ?? "";
   const setQuery = (q: string) => updateQuery({ q });
   const [editing, setEditing] = useState<Member | null>(null);
+  const [isNew, setIsNew] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const filter = params.get("jenis") || "semua";
   const setFilter = (jenis: string) => updateQuery({ jenis });
   const [importOpen, setImportOpen] = useState(false);
@@ -31,9 +34,9 @@ export default function HrMembers() {
     return missing(member, gap) && matches && (filter === "semua" || (member.employmentType ?? "karyawan") === filter);
   });
 
-  function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editing) return;
+    if (!editing || busy) return;
     if (!editing.name.trim() || !/^\S+@\S+\.\S+$/.test(editing.email) || !editing.role.trim()) {
       setError("Isi nama, jabatan, dan email yang valid.");
       return;
@@ -49,8 +52,59 @@ export default function HrMembers() {
       return;
     }
     const name = editing.name.trim();
-    dispatch({ type: "upsertMember", member: { ...editing, name, email: editing.email.trim().toLowerCase(), initials: name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() } });
+    const email = editing.email.trim().toLowerCase();
+    const role = editing.role.trim();
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        if (isNew) {
+          const res = await api.members.create({
+            name,
+            email,
+            role,
+            access: "anggota",
+            employmentType: editing.employmentType ?? "karyawan",
+            team: editing.team?.trim() ?? "",
+            division: editing.division?.trim() ?? "",
+            weeklyLimit: editing.weeklyLimit,
+            workHoursOverride: editing.workHoursOverride,
+            reserveHoursOverride: editing.reserveHoursOverride,
+            availableHours: editing.availableHours,
+          });
+          dispatch({ type: "upsertMember", member: res.member });
+          setMessage(
+            res.inviteToken
+              ? `${res.member.name} ditambahkan. Tautan undangan lokal: /undangan/${res.inviteToken}`
+              : `${res.member.name} ditambahkan ke organisasi.`,
+          );
+        } else {
+          const res = await api.members.update(editing.id, {
+            name,
+            email,
+            role,
+            employmentType: editing.employmentType ?? "karyawan",
+            team: editing.team?.trim() ?? "",
+            division: editing.division?.trim() ?? "",
+            weeklyLimit: editing.weeklyLimit,
+            workHoursOverride: editing.workHoursOverride ?? null,
+            reserveHoursOverride: editing.reserveHoursOverride ?? null,
+            availableHours: editing.availableHours ?? null,
+          });
+          dispatch({ type: "upsertMember", member: res.member });
+        }
+        setEditing(null);
+        setIsNew(false);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal menyimpan profil anggota.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    dispatch({ type: "upsertMember", member: { ...editing, name, email, role, initials: name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() } });
     setEditing(null);
+    setIsNew(false);
   }
 
   async function loadCsv(file: File) {
@@ -68,7 +122,35 @@ export default function HrMembers() {
     }
   }
 
-  function importMembers() {
+  async function importMembers() {
+    if (busy) return;
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        const res = await api.members.importCsv({ csv, dryRun: false });
+        const failed = res.rows.find((row) => row.error);
+        const imported = res.rows.filter((row): row is { line: number; member: Member } => Boolean(row.member));
+        imported.forEach((row) => dispatch({ type: "upsertMember", member: row.member }));
+        if (failed && imported.length === 0) {
+          setError(`Baris ${failed.line}: ${failed.error}`);
+          return;
+        }
+        setMessage(
+          failed
+            ? `${imported.length} anggota diimpor; baris ${failed.line} gagal (${failed.error}).`
+            : `${imported.length} anggota berhasil diimpor.`,
+        );
+        setImportOpen(false);
+        setCsv("");
+        setFileName("");
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal mengimpor data anggota.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const lines = csv.trim().split(/\r?\n/);
     if (lines.shift()?.trim().toLowerCase() !== "nama,email,jabatan,jenis,tim,divisi,jam") {
       setError("Header harus: nama,email,jabatan,jenis,tim,divisi,jam.");
@@ -100,6 +182,7 @@ export default function HrMembers() {
 
   function add() {
     setError("");
+    setIsNew(true);
     setEditing({ id: crypto.randomUUID(), name: "", initials: "", email: "", role: "", employmentType: "karyawan", team: "", division: "", availableHours: null, weeklyLimit: 40, leaveDates: [], competencies: [], prefers: [], avoids: [], access: "anggota" });
   }
 
@@ -113,7 +196,7 @@ export default function HrMembers() {
         <Choice label="Jenis hubungan kerja" choices={{ semua: "Semua jenis", ...employmentChoices }} value={filter} onChange={setFilter} />
       </div>
       <div className="table-scroll stack-table spaced"><table><thead><tr><th>Anggota</th><th>Jenis</th><th>Tim</th><th>Divisi</th><th>Jam kerja</th><th>Aksi</th></tr></thead><tbody>
-        {shown.map((member) => <tr key={member.id}><td><Person member={member} /></td><td data-label="Jenis">{member.employmentType === "freelancer" ? "Freelancer" : "Karyawan"}</td><td data-label="Tim">{member.team || "Belum diisi"}</td><td data-label="Divisi">{member.division || "Belum diisi"}</td><td data-label="Jam kerja">{member.weeklyLimit} jam/minggu</td><td><button className="button" onClick={() => { setError(""); setEditing(member); }}>Ubah profil</button></td></tr>)}
+        {shown.map((member) => <tr key={member.id}><td><Person member={member} /></td><td data-label="Jenis">{member.employmentType === "freelancer" ? "Freelancer" : "Karyawan"}</td><td data-label="Tim">{member.team || "Belum diisi"}</td><td data-label="Divisi">{member.division || "Belum diisi"}</td><td data-label="Jam kerja">{member.weeklyLimit} jam/minggu</td><td><button className="button" onClick={() => { setError(""); setIsNew(false); setEditing(member); }}>Ubah profil</button></td></tr>)}
       </tbody></table></div>
       {!shown.length && <p>Tidak ada anggota yang cocok.</p>}
     </section>
@@ -130,10 +213,10 @@ export default function HrMembers() {
         <div className="hr-import-guide"><Icon icon={FileSpreadsheet} size={18} /><div><strong>Format file</strong><p className="muted">Kolom: nama, email, jabatan, jenis, tim, divisi, jam. Jenis diisi karyawan atau freelancer. Hindari koma di dalam isi kolom.</p><a className="inline-link" href={"data:text/csv;charset=utf-8," + encodeURIComponent("nama,email,jabatan,jenis,tim,divisi,jam\nSari,sari@example.com,Analis,karyawan,Operasional,Umum,40\n")} download="template-anggota.csv">Unduh template CSV</a></div></div>
         <label className="field"><span className="field-label">Data CSV</span><textarea className="input" rows={5} value={csv} onChange={(event) => { setCsv(event.target.value); setError(""); }} placeholder={"nama,email,jabatan,jenis,tim,divisi,jam\nSari,sari@example.com,Analis,karyawan,Operasional,Umum,40"} /><span className="field-hint">Data dapat ditempel atau diedit sebelum diimpor.</span></label>
         {error && <p className="field-error" role="alert">{error}</p>}
-        <div className="hr-import-actions"><button className="button" type="button" onClick={() => setImportOpen(false)}>Batal</button><button className="button primary" type="button" onClick={importMembers} disabled={!csv.trim()}>Impor anggota</button></div>
+        <div className="hr-import-actions"><button className="button" type="button" onClick={() => setImportOpen(false)}>Batal</button><button className="button primary" type="button" onClick={() => void importMembers()} disabled={busy || !csv.trim()}>{busy ? "Mengimpor..." : "Impor anggota"}</button></div>
       </div>
     </Modal>}
-    {editing && <Modal title="Profil kerja anggota" onClose={() => setEditing(null)}><form onSubmit={save} className="form-grid">
+    {editing && <Modal title="Profil kerja anggota" onClose={() => { setEditing(null); setIsNew(false); }}><form onSubmit={(e) => void save(e)} className="form-grid">
       {([["name", "Nama lengkap"], ["email", "Email"], ["role", "Jabatan"], ["team", "Tim"], ["division", "Divisi"]] as const).map(([key, label]) => <label className="field full" key={key}><span className="field-label">{label}</span><input className="input" value={editing[key] ?? ""} onChange={(event) => setEditing({ ...editing, [key]: event.target.value })} /></label>)}
       <Choice label="Jenis hubungan kerja" choices={employmentChoices} value={editing.employmentType ?? "karyawan"} onChange={value => setEditing({ ...editing, employmentType: value as "karyawan" | "freelancer" })} />
       {editing.employmentType === "freelancer" ? <>
@@ -145,7 +228,7 @@ export default function HrMembers() {
         <p className="muted full">Jam reguler {editing.workHoursOverride ?? hrSettings?.weeklyHours ?? 40} · Cadangan {editing.reserveHoursOverride ?? hrSettings?.reserveHours ?? 0} · Dapat direncanakan {Math.max(0, (editing.workHoursOverride ?? hrSettings?.weeklyHours ?? 40) - (editing.reserveHoursOverride ?? hrSettings?.reserveHours ?? 0))} jam per minggu.</p>
       </>}
       {error && <p role="alert">{error}</p>}
-      <button className="button primary" type="submit">Simpan profil</button>
+      <button className="button primary" type="submit" disabled={busy}>{busy ? "Menyimpan..." : "Simpan profil"}</button>
     </form></Modal>}
   </div>;
 }

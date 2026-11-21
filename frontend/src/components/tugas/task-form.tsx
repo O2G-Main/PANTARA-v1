@@ -6,7 +6,7 @@ import { useState } from "react";
 import { CircleAlert, Save, Sparkles } from "lucide-react";
 import { FlowSteps, PageHeading } from "@/components/app/parts";
 import { Icon } from "@/components/ui";
-import { api, ApiError, AWAITING_BACKEND, DATA_MODE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { mockDna } from "@/lib/demo/mock-dna";
 import { NOW } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
@@ -70,6 +70,7 @@ export function TaskForm() {
           title: form.title.trim(),
           description: form.description.trim(),
           dueDate,
+          dueTime: form.dueTime,
           priority: form.priority,
           draft,
         });
@@ -188,10 +189,10 @@ export function TaskForm() {
           </label>
           <label className="field">
             <span className="field-label">Jam tenggat (WIB)</span>
-            <select className="select" value={form.dueTime} disabled={AWAITING_BACKEND} onChange={(e) => set("dueTime", e.target.value)}>
+            <select className="select" value={form.dueTime} onChange={(e) => set("dueTime", e.target.value)}>
               {(TIME_OPTIONS.includes(form.dueTime) ? TIME_OPTIONS : [...TIME_OPTIONS, form.dueTime].sort()).map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <span className="field-hint">{AWAITING_BACKEND ? "Menunggu backend: tenggat memakai 17:00." : "Anggota bisa minta tambahan waktu 2 jam sebelum tenggat."}</span>
+            <span className="field-hint">Anggota bisa minta tambahan waktu 2 jam sebelum tenggat.</span>
           </label>
           <fieldset className="field full">
             <legend className="field-label">Prioritas</legend>

@@ -8,7 +8,7 @@ import { use, useState } from "react";
 import { CalendarOff, Check, CircleAlert, CircleCheck, Clock3, History, Inbox, MessageSquareWarning, ShieldCheck, X } from "lucide-react";
 import { CapacityBar, EmptyState, PageHeading, PriorityBadge, SectionTitle, StatusBadge } from "@/components/app/parts";
 import { Badge, Icon, Modal } from "@/components/ui";
-import { api, ApiError, AWAITING_BACKEND, AWAITING_BACKEND_NOTE, DATA_MODE } from "@/lib/api";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { PERIOD } from "@/lib/demo/seed";
 import { useDemo } from "@/lib/demo/store";
 import { useSession } from "@/lib/session";
@@ -247,7 +247,13 @@ export function MyHome() {
         <ExtraTimeModal
           task={extraTask}
           onClose={() => setExtraTask(null)}
-          onSubmit={(h, reason) => {
+          onSubmit={async (h, reason) => {
+            if (DATA_MODE === "api") {
+              const res = await api.self.requestExtraTime(extraTask.id, { hours: h, reason });
+              dispatch({ type: "upsertTask", task: res.task });
+              setExtraTask(null);
+              return;
+            }
             dispatch({
               type: "updateTask",
               id: extraTask.id,
@@ -263,20 +269,28 @@ export function MyHome() {
 
 const EXTRA_LABEL = { menunggu: "menunggu persetujuan manajer", disetujui: "disetujui", ditolak: "tidak disetujui" } as const;
 
-function ExtraTimeModal({ task, onClose, onSubmit }: { task: Task; onClose: () => void; onSubmit: (hours: number, reason: string) => void }) {
+function ExtraTimeModal({ task, onClose, onSubmit }: { task: Task; onClose: () => void; onSubmit: (hours: number, reason: string) => Promise<void> | void }) {
   const [extra, setExtra] = useState("2");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
     <Modal title="Minta tambahan waktu" onClose={onClose}>
       <form
         noValidate
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          if (busy) return;
           const h = Number(extra.replace(",", "."));
           if (!Number.isFinite(h) || h <= 0) return setError("Isi tambahan jam lebih dari 0.");
           if (reason.trim().length < 10) return setError("Tulis alasan minimal 10 karakter supaya manajer bisa menilai.");
-          onSubmit(h, reason.trim());
+          setBusy(true);
+          try {
+            await onSubmit(h, reason.trim());
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : "Gagal mengirim permintaan tambahan waktu.");
+            setBusy(false);
+          }
         }}
       >
         <p className="dialog-summary">
@@ -295,14 +309,13 @@ function ExtraTimeModal({ task, onClose, onSubmit }: { task: Task; onClose: () =
           />
         </label>
         {error && <p className="field-error spaced" role="alert">{error}</p>}
-        {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
         <div className="dialog-actions">
           <button type="button" className="button secondary" onClick={onClose}>
             Batal
           </button>
-          <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
+          <button type="submit" className="button primary" disabled={busy}>
             <Icon icon={Clock3} size={16} />
-            Kirim permintaan
+            {busy ? "Mengirim..." : "Kirim permintaan"}
           </button>
         </div>
       </form>
@@ -388,14 +401,32 @@ export function MyLeave() {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
   if (!me) return fallback;
   const requests = me.leaveRequests ?? [];
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!me) return;
+    if (!me || busy) return;
     const problem = leaveError(start, end, reason, today);
     if (problem) return setError(problem);
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        const res = await api.self.createLeaveRequest({ start, end, type, reason: reason.trim() });
+        dispatch({ type: "upsertMember", member: res.member });
+        setStart("");
+        setEnd("");
+        setReason("");
+        setSent(true);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal mengirim pengajuan cuti.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const req: LeaveRequest = {
       id: `CUTI-${me.id}-${requests.length + 1}`,
       start,
@@ -417,7 +448,7 @@ export function MyLeave() {
     <div className="page-enter">
       <PageHeading title="Pengajuan cuti" subtitle="Cuti berlaku setelah disetujui manajer dan HR. Hari kerjanya lalu dikurangi dari jam tersedia." />
       <div className="split-even">
-        <form className="card" onSubmit={submit} noValidate>
+        <form className="card" onSubmit={(e) => void submit(e)} noValidate>
           <SectionTitle title="Ajukan cuti" subtitle="Isi rentang tanggal, jenis, dan alasan." />
           {sent && (
             <div className="decision-banner" role="status">
@@ -457,11 +488,10 @@ export function MyLeave() {
               {error}
             </p>
           )}
-          {AWAITING_BACKEND && <p className="small muted spaced">{AWAITING_BACKEND_NOTE}</p>}
           <div className="form-actions">
-            <button type="submit" className="button primary" disabled={AWAITING_BACKEND}>
+            <button type="submit" className="button primary" disabled={busy}>
               <Icon icon={CalendarOff} size={16} />
-              Ajukan cuti
+              {busy ? "Mengirim..." : "Ajukan cuti"}
             </button>
           </div>
         </form>

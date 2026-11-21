@@ -6,6 +6,7 @@ import { Upload } from "lucide-react";
 import { Icon } from "@/components/ui";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Modal } from "@/components/ui";
+import { api, ApiError, DATA_MODE } from "@/lib/api";
 import { useDemo } from "@/lib/demo/store";
 import type { Member } from "@/lib/demo/types";
 
@@ -19,6 +20,7 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [reading, setReading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [profile, setProfile] = useState({ name: "", email: "", role: "", team: "", employmentType: "karyawan" as "karyawan" | "freelancer", weeklyLimit: 40 });
   const chosen = members.filter((member) => selected.includes(member.id) && member.division?.trim() !== division);
@@ -29,9 +31,23 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
   }, [members, division]);
 
 
-  function placeMembers() {
+  async function placeMembers() {
+    if (busy) return;
     if (!chosen.length) {
       setError("Pilih setidaknya satu anggota.");
+      return;
+    }
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        await api.hr.placeMembers({ ids: chosen.map((member) => member.id), division, team: team.trim() || undefined });
+        dispatch({ type: "placeMembers", ids: chosen.map((member) => member.id), division, team: team.trim() || undefined });
+        onClose();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal menempatkan anggota.");
+        setBusy(false);
+      }
       return;
     }
     dispatch({ type: "placeMembers", ids: chosen.map((member) => member.id), division, team: team.trim() || undefined });
@@ -79,8 +95,9 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
     }
   }
 
-  function createMember(event: React.FormEvent<HTMLFormElement>) {
+  async function createMember(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const name = profile.name.trim();
     const email = profile.email.trim().toLowerCase();
     if (!name || !profile.role.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
@@ -89,6 +106,28 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
     }
     if (members.some((member) => member.email.trim().toLowerCase() === email)) {
       setError("Email sudah digunakan anggota lain.");
+      return;
+    }
+    if (DATA_MODE === "api") {
+      setBusy(true);
+      setError("");
+      try {
+        const res = await api.members.create({
+          name,
+          email,
+          role: profile.role.trim(),
+          access: "anggota",
+          division,
+          team: profile.team.trim(),
+          employmentType: profile.employmentType,
+          weeklyLimit: profile.weeklyLimit,
+        });
+        dispatch({ type: "upsertMember", member: res.member });
+        onClose();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Gagal menyimpan anggota.");
+        setBusy(false);
+      }
       return;
     }
     const member: Member = {
@@ -119,14 +158,15 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
       <p className="muted">{chosen.length} anggota dipilih</p>
       <label className="field spaced"><span className="field-label">Tim (opsional)</span><input className="input" value={team} onChange={(event) => setTeam(event.target.value)} placeholder="Kosongkan untuk mempertahankan tim saat ini" /></label>
       {error && <p role="alert" className="field-error">{error}</p>}
-      <div className="toolbar spaced"><button className="button" onClick={() => { setError(""); setStep("choose"); }}>Kembali</button><button className="button primary" onClick={() => { if (!chosen.length) setError("Pilih setidaknya satu anggota."); else if (transfers.length) { setError(""); setStep("confirm"); } else placeMembers(); }}>Tambahkan</button></div>
+      <div className="toolbar spaced"><button className="button" onClick={() => { setError(""); setStep("choose"); }}>Kembali</button><button className="button primary" disabled={busy} onClick={() => { if (!chosen.length) setError("Pilih setidaknya satu anggota."); else if (transfers.length) { setError(""); setStep("confirm"); } else void placeMembers(); }}>Tambahkan</button></div>
     </div>}
     {step === "confirm" && <div>
       <p>Anggota berikut akan dipindahkan ke {division}:</p>
       <ul className="spaced">{transfers.map((member) => <li key={member.id}>{member.name} · {member.division}</li>)}</ul>
-      <div className="toolbar spaced"><button className="button" onClick={() => setStep("existing")}>Kembali</button><button className="button primary" onClick={placeMembers}>Konfirmasi perpindahan</button></div>
+      {error && <p role="alert" className="field-error">{error}</p>}
+      <div className="toolbar spaced"><button className="button" onClick={() => setStep("existing")}>Kembali</button><button className="button primary" disabled={busy} onClick={() => void placeMembers()}>{busy ? "Menyimpan..." : "Konfirmasi perpindahan"}</button></div>
     </div>}
-    {step === "new" && <form onSubmit={createMember} className="form-grid">
+    {step === "new" && <form onSubmit={(e) => void createMember(e)} className="form-grid">
       <div className="field full">
         <span className="field-label">CV (opsional)</span>
         <label className={`hr-cv-upload${dragging ? " is-dragging" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setDragging(false); }} onDrop={(event) => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files[0]; if (file && !reading) void readCv(file); }}>
@@ -143,7 +183,7 @@ export function AddDivisionMembers({ division, onClose }: { division: string; on
       <Choice label="Jenis hubungan kerja" choices={employmentChoices} value={profile.employmentType} onChange={value => setProfile({ ...profile, employmentType: value as "karyawan" | "freelancer" })} />
       <label className="field"><span className="field-label">Jam kerja per minggu</span><input className="input" type="number" min="0" max="168" required value={profile.weeklyLimit} onChange={(event) => setProfile({ ...profile, weeklyLimit: Number(event.target.value) })} /></label>
       {error && <p className="full field-error" role="alert">{error}</p>}
-      <div className="toolbar full"><button className="button" type="button" onClick={() => { setError(""); setStep("choose"); }}>Kembali</button><button className="button primary" type="submit" disabled={reading}>Simpan anggota</button></div>
+      <div className="toolbar full"><button className="button" type="button" onClick={() => { setError(""); setStep("choose"); }}>Kembali</button><button className="button primary" type="submit" disabled={reading || busy}>{busy ? "Menyimpan..." : "Simpan anggota"}</button></div>
     </form>}
   </Modal>;
 }

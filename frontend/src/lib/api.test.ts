@@ -85,4 +85,53 @@ describe("api client", () => {
       expect((err as ApiError).code).toBe("network_error");
     }
   });
+
+  it("memanggil endpoint corporate-first dan HR dengan path, method, serta payload yang sesuai", async () => {
+    const calls: { url: string; method?: string; body?: string }[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push({ url, method: init?.method, body: typeof init?.body === "string" ? init.body : undefined });
+      return new Response(JSON.stringify({ ok: true, rows: [], divisions: [], task: {}, member: {}, request: {}, review: {}, settings: {}, config: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    await api.self.requestExtraTime("TGS-0164", { hours: 3, reason: "Tambah skenario regresi laporan." });
+    await api.self.createLeaveRequest({ start: "2026-10-05", end: "2026-10-06", type: "tahunan", reason: "Acara keluarga luar kota." });
+    await api.tasks.decideExtraTime("TGS-0164", true);
+    await api.tasks.importCsv({ csv: "judul,proyek", dryRun: true });
+    await api.tasks.updateResultNote("TGS-0128", "Rapi dan teruji.");
+    await api.members.decideLeave("fikri", "CUTI-fikri-1", true);
+    await api.members.importCsv({ csv: "nama,email,jabatan,jenis,tim,divisi,jam", dryRun: true });
+    await api.hr.createDivision("Produk & Riset");
+    await api.hr.renameDivision("Produk & Riset", "Engineering");
+    await api.hr.placeMembers({ ids: ["bima"], division: "Engineering", team: "Backend" });
+    await api.hr.updateSettings({ weeklyHours: 40, reserveHours: 4 });
+    await api.hr.createRequest({ title: "Monitor", description: "Butuh monitor tambahan untuk kerja." });
+    await api.hr.decideLeave("CUTI-fikri-1", true);
+    await api.hr.createPerformanceReview({
+      memberId: "bima",
+      period: "2026-10",
+      note: "Konsisten",
+      criteria: [{ id: "collaboration", score: 90 }],
+    });
+
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      "POST /api/v1/saya/tasks/TGS-0164/extra-time",
+      "POST /api/v1/saya/leave-requests",
+      "POST /api/v1/tasks/TGS-0164/extra-time/decision",
+      "POST /api/v1/tasks/import",
+      "PATCH /api/v1/tasks/TGS-0128/result-note",
+      "POST /api/v1/members/fikri/leave-requests/CUTI-fikri-1/decision",
+      "POST /api/v1/members/import",
+      "POST /api/v1/hr/divisions",
+      "PATCH /api/v1/hr/divisions/Produk%20%26%20Riset",
+      "POST /api/v1/hr/members/place",
+      "PUT /api/v1/hr/settings",
+      "POST /api/v1/hr/requests",
+      "POST /api/v1/hr/leave-requests/CUTI-fikri-1/decision",
+      "POST /api/v1/manager/performance-reviews",
+    ]);
+  });
 });
